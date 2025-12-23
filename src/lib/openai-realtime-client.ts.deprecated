@@ -1,0 +1,256 @@
+import WebSocket from 'ws';
+import { EventEmitter } from 'events';
+
+export interface TranslationResult {
+    type: 'translate';
+    sourceLang: string;
+    targetLang: string;
+    textSource: string;
+    textTarget: string;
+}
+
+export class OpenAIRealtimeClient extends EventEmitter {
+    private ws: WebSocket | null = null;
+    private apiKey: string;
+    private model: string;
+    public isConnected: boolean = false;
+
+    // 語言設定
+    private sourceLang: string = 'zh-TW';
+    private targetLang: string = 'en';
+
+    // Server VAD 設定
+    private vadThreshold: number = 0.5;
+    private vadSilenceDurationMs: number = 600;
+
+    constructor(apiKey: string, model: string = 'gpt-4o-realtime-preview-2024-12-17') {
+        super();
+        this.apiKey = apiKey;
+        this.model = model;
+    }
+
+    // 取得當前語言設定
+    getLanguages(): { sourceLang: string; targetLang: string } {
+        return {
+            sourceLang: this.sourceLang,
+            targetLang: this.targetLang,
+        };
+    }
+
+    // 設定語言
+    setLanguages(source: string, target: string): void {
+        this.sourceLang = source;
+        this.targetLang = target;
+        if (this.isConnected) {
+            this.sendEvent({
+                type: 'session.update',
+                session: {
+                    instructions: this.buildInstructions(),
+                },
+            });
+        }
+    }
+
+    // 設定 VAD 參數（可選）
+    setVadConfig(threshold: number, silenceDurationMs: number): void {
+        this.vadThreshold = threshold;
+        this.vadSilenceDurationMs = silenceDurationMs;
+        if (this.isConnected) {
+            this.sendEvent({
+                type: 'session.update',
+                session: {
+                    turn_detection: {
+                        type: 'server_vad',
+                        threshold: this.vadThreshold,
+                        silence_duration_ms: this.vadSilenceDurationMs,
+                    },
+                },
+            });
+        }
+    }
+
+    // 建立翻譯專用的 system prompt
+    private buildInstructions(): string {
+        return `
+你是一個即時口語翻譯助手。
+- 說話者語言：${this.sourceLang}
+- 目標語言：${this.targetLang}
+先把輸入語音正確辨識成文字，再翻譯成目標語言。
+回應要短、自然，適合醫療場域顯示。`.trim();
+    }
+
+    async connect(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const url = `wss://api.openai.com/v1/realtime?model=${this.model}`;
+
+            this.ws = new WebSocket(url, {
+                headers: {
+                    Authorization: `Bearer ${this.apiKey}`,
+                    'OpenAI-Beta': 'realtime=v1',
+                },
+            });
+
+            this.ws.on('open', () => {
+                this.isConnected = true;
+                // 使用 server VAD 設定
+                this.sendEvent({
+                    type: 'session.update',
+                    session: {
+                        modalities: ['text', 'audio'],
+                        instructions: this.buildInstructions(),
+                        input_audio_format: 'pcm16',
+                        input_audio_transcription: {
+                            model: 'whisper-1',
+                        },
+                        turn_detection: {
+                            type: 'server_vad',
+                            threshold: this.vadThreshold,
+                            silence_duration_ms: this.vadSilenceDurationMs,
+                        },
+                    },
+                });
+                this.emit('connected');
+                resolve();
+            });
+
+            this.ws.on('message', (data: WebSocket.Data) => {
+                try {
+                    const event = JSON.parse(data.toString());
+                    this.handleEvent(event);
+                } catch (e) {
+                    console.error('Failed to parse event:', e);
+                }
+            });
+
+            this.ws.on('error', (error) => {
+                this.emit('error', error);
+                reject(error);
+            });
+
+            this.ws.on('close', () => {
+                this.isConnected = false;
+                this.emit('disconnected');
+            });
+        });
+    }
+
+    private handleEvent(event: any): void {
+        this.emit('event', event);
+
+        switch (event.type) {
+            case 'session.created':
+                this.emit('session.created', event.session);
+                break;
+
+            case 'session.updated':
+                this.emit('session.updated', event.session);
+                break;
+
+            // 原文語音轉文字完成
+            case 'conversation.item.input_audio_transcription.completed':
+                this.emit('transcript', event.transcript);
+                break;
+
+            case 'response.audio_transcript.delta':
+                this.emit('audio_transcript_delta', event.delta);
+                break;
+
+            case 'response.audio_transcript.done':
+                this.emit('audio_transcript_done', event.transcript);
+                break;
+
+            case 'response.audio.delta':
+                this.emit('audio_delta', event.delta);
+                break;
+
+            case 'response.audio.done':
+                this.emit('audio_done');
+                break;
+
+            // 回應完成，取出翻譯後的文字
+            case 'response.done':
+                if (event.response?.output) {
+                    for (const item of event.response.output) {
+                        if (item.type === 'message' && item.content) {
+                            for (const content of item.content) {
+                                if (content.type === 'text' && content.text) {
+                                    this.emit('text', content.text);
+                                }
+                                if (content.type === 'audio' && content.transcript) {
+                                    this.emit('text', content.transcript);
+                                }
+                            }
+                        }
+                    }
+                }
+                this.emit('response.done', event.response);
+                break;
+
+            case 'input_audio_buffer.speech_started':
+                this.emit('speech_started');
+                break;
+
+            case 'input_audio_buffer.speech_stopped':
+                this.emit('speech_stopped');
+                break;
+
+            case 'error':
+                this.emit('error', event.error);
+                break;
+        }
+    }
+
+    sendEvent(event: any): void {
+        if (this.ws && this.isConnected) {
+            this.ws.send(JSON.stringify(event));
+        }
+    }
+
+    // 連續錄音時呼叫，server VAD 會自動偵測語音結束
+    sendAudioChunk(base64Audio: string): void {
+        this.sendEvent({
+            type: 'input_audio_buffer.append',
+            audio: base64Audio,
+        });
+    }
+
+    // 手動模式時使用（server VAD 模式下通常不需要）
+    commitAudioAndRespond(): void {
+        this.sendEvent({
+            type: 'input_audio_buffer.commit',
+        });
+        this.sendEvent({
+            type: 'response.create',
+        });
+    }
+
+    // 監聽原文 transcript
+    onTranscript(callback: (transcript: string) => void): void {
+        this.on('transcript', callback);
+    }
+
+    // 監聽翻譯後的文字
+    onText(callback: (text: string) => void): void {
+        this.on('text', callback);
+    }
+
+    onAudioDelta(callback: (delta: string) => void): void {
+        this.on('audio_delta', callback);
+    }
+
+    onSpeechStarted(callback: () => void): void {
+        this.on('speech_started', callback);
+    }
+
+    onSpeechStopped(callback: () => void): void {
+        this.on('speech_stopped', callback);
+    }
+
+    disconnect(): void {
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
+            this.isConnected = false;
+        }
+    }
+}

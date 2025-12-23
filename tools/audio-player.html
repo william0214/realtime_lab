@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTS 測試播放器 - 即時翻譯系統</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        label {
+            color: #aaa;
+            font-size: 0.85rem;
+        }
+
+        select,
+        button {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #2a2a4a;
+            color: #fff;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        select:hover,
+        button:hover {
+            border-color: #00d9ff;
+        }
+
+        button {
+            background: linear-gradient(135deg, #00d9ff, #00a8cc);
+            border: none;
+            font-weight: 600;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 217, 255, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.stop {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+        }
+
+        .status-bar {
+            background: #2a2a4a;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+        }
+
+        .status-indicator.playing {
+            background: #00ff88;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .current-text {
+            flex: 1;
+            font-size: 1.1rem;
+        }
+
+        .current-text .context {
+            color: #888;
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+
+        .sentence-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sentence-item {
+            background: #2a2a4a;
+            border-radius: 10px;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .sentence-item:hover {
+            background: #3a3a5a;
+            transform: translateX(5px);
+        }
+
+        .sentence-item.playing {
+            background: linear-gradient(135deg, rgba(0, 217, 255, 0.2), rgba(0, 255, 136, 0.1));
+            border: 1px solid #00d9ff;
+        }
+
+        .sentence-item.played {
+            opacity: 0.6;
+        }
+
+        .lang-badge {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .lang-badge.zh {
+            background: #e74c3c;
+        }
+
+        .lang-badge.en {
+            background: #3498db;
+        }
+
+        .lang-badge.vi {
+            background: #2ecc71;
+        }
+
+        .lang-badge.id {
+            background: #9b59b6;
+        }
+
+        .lang-badge.th {
+            background: #f39c12;
+        }
+
+        .lang-badge.ja {
+            background: #e91e63;
+        }
+
+        .sentence-chinese {
+            color: #888;
+            font-size: 0.85rem;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid #444;
+        }
+
+        .sentence-content {
+            flex: 1;
+        }
+
+        .sentence-text {
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+
+        .sentence-context {
+            color: #888;
+            font-size: 0.8rem;
+        }
+
+        .play-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .play-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        .error-message {
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid #ff6b6b;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .loading::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+
+            0%,
+            20% {
+                content: '.';
+            }
+
+            40% {
+                content: '..';
+            }
+
+            60%,
+            100% {
+                content: '...';
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🎙️ TTS 測試播放器</h1>
+            <p>即時翻譯系統 - 語音測試工具</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>語言篩選:</label>
+                <select id="langFilter">
+                    <option value="all">全部語言</option>
+                    <option value="zh">中文</option>
+                    <option value="en">English</option>
+                    <option value="vi">Tiếng Việt</option>
+                    <option value="id">Bahasa Indonesia</option>
+                    <option value="th">ภาษาไทย</option>
+                    <option value="ja">日本語</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>播放模式:</label>
+                <select id="playMode">
+                    <option value="single">單句播放</option>
+                    <option value="continuous">連續播放</option>
+                    <option value="loop">循環播放</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="showChinese" checked>
+                    顯示中文對照
+                </label>
+            </div>
+
+            <button id="playAllBtn">▶️ 播放全部</button>
+            <button id="stopBtn" class="stop" disabled>⏹️ 停止</button>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <div class="current-text">
+                <div id="currentText">準備就緒 - 選擇句子開始播放</div>
+                <div class="context" id="currentContext"></div>
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div id="sentenceList" class="sentence-list">
+            <div class="loading">載入測試句子中</div>
+        </div>
+
+        <footer class="footer">
+            <p>💡 提示: 使用手機或其他裝置播放測試語音，讓翻譯系統「聽到」聲音進行測試</p>
+        </footer>
+    </div>
+
+    <script>
+        // 狀態
+        let sentences = [];
+        let currentIndex = -1;
+        let isPlaying = false;
+        let audio = null;
+        let playMode = 'single';
+
+        // DOM 元素
+        const langFilter = document.getElementById('langFilter');
+        const playModeSelect = document.getElementById('playMode');
+        const showChineseCheckbox = document.getElementById('showChinese');
+        const playAllBtn = document.getElementById('playAllBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const currentText = document.getElementById('currentText');
+        const currentContext = document.getElementById('currentContext');
+        const progressFill = document.getElementById('progressFill');
+        const sentenceList = document.getElementById('sentenceList');
+
+        // 載入音檔清單
+        async function loadManifest() {
+            try {
+                const response = await fetch('./audio/manifest.json');
+                if (!response.ok) {
+                    throw new Error('manifest.json 不存在，請先執行 npm run generate');
+                }
+                const manifest = await response.json();
+                sentences = manifest.files;
+                renderSentences();
+            } catch (error) {
+                sentenceList.innerHTML = `
+          <div class="error-message">
+            <h3>⚠️ 無法載入音檔清單</h3>
+            <p>${error.message}</p>
+            <p style="margin-top: 10px;">請先執行: <code>cd tools && npm install && npm run generate</code></p>
+          </div>
+        `;
+            }
+        }
+
+        // 渲染句子列表
+        function renderSentences() {
+            const filter = langFilter.value;
+            const showChinese = showChineseCheckbox.checked;
+            const filtered = filter === 'all'
+                ? sentences
+                : sentences.filter(s => s.lang === filter);
+
+            if (filtered.length === 0) {
+                sentenceList.innerHTML = '<div class="loading">沒有符合條件的句子</div>';
+                return;
+            }
+
+            sentenceList.innerHTML = filtered.map((sentence, idx) => `
+        <div class="sentence-item" data-id="${sentence.id}" data-index="${sentences.indexOf(sentence)}">
+          <span class="lang-badge ${sentence.lang}">${sentence.langName}</span>
+          <div class="sentence-content">
+            <div class="sentence-text">${sentence.text}</div>
+            ${showChinese && sentence.lang !== 'zh' && sentence.chinese ? `<div class="sentence-chinese">📝 ${sentence.chinese}</div>` : ''}
+            <div class="sentence-context">${sentence.context}</div>
+          </div>
+          <button class="play-btn" onclick="playSentence(${sentences.indexOf(sentence)})">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </button>
+        </div>
+      `).join('');
+        }
+
+        // 播放單一句子
+        function playSentence(index) {
+            if (audio) {
+                audio.pause();
+                audio = null;
+            }
+
+            currentIndex = index;
+            const sentence = sentences[index];
+
+            // 更新 UI
+            document.querySelectorAll('.sentence-item').forEach(el => {
+                el.classList.remove('playing');
+                if (el.dataset.index == index) {
+                    el.classList.add('playing');
+                }
+            });
+
+            statusIndicator.classList.add('playing');
+            currentText.textContent = sentence.text;
+            currentContext.textContent = `${sentence.langName} - ${sentence.context}`;
+            stopBtn.disabled = false;
+            isPlaying = true;
+
+            // 播放音檔
+            audio = new Audio(`./audio/${sentence.file}`);
+
+            audio.addEventListener('timeupdate', () => {
+                const progress = (audio.currentTime / audio.duration) * 100;
+                progressFill.style.width = `${progress}%`;
+            });
+
+            audio.addEventListener('ended', () => {
+                document.querySelector(`[data-index="${index}"]`)?.classList.add('played');
+                document.querySelector(`[data-index="${index}"]`)?.classList.remove('playing');
+
+                // 根據播放模式決定下一步
+                if (playMode === 'continuous' || playMode === 'loop') {
+                    const filter = langFilter.value;
+                    const filteredIndices = sentences
+                        .map((s, i) => ({ s, i }))
+                        .filter(({ s }) => filter === 'all' || s.lang === filter)
+                        .map(({ i }) => i);
+
+                    const currentFilteredIndex = filteredIndices.indexOf(index);
+                    const nextFilteredIndex = currentFilteredIndex + 1;
+
+                    if (nextFilteredIndex < filteredIndices.length) {
+                        setTimeout(() => playSentence(filteredIndices[nextFilteredIndex]), 500);
+                    } else if (playMode === 'loop') {
+                        setTimeout(() => playSentence(filteredIndices[0]), 500);
+                    } else {
+                        stopPlayback();
+                    }
+                } else {
+                    stopPlayback();
+                }
+            });
+
+            audio.addEventListener('error', (e) => {
+                console.error('播放錯誤:', e);
+                currentText.textContent = `❌ 播放錯誤: ${sentence.file}`;
+                stopPlayback();
+            });
+
+            audio.play().catch(err => {
+                console.error('播放失敗:', err);
+                currentText.textContent = '❌ 播放失敗，請確認音檔已產生';
+                stopPlayback();
+            });
+        }
+
+        // 停止播放
+        function stopPlayback() {
+            if (audio) {
+                audio.pause();
+                audio = null;
+            }
+            isPlaying = false;
+            statusIndicator.classList.remove('playing');
+            stopBtn.disabled = true;
+            progressFill.style.width = '0%';
+            document.querySelectorAll('.sentence-item').forEach(el => {
+                el.classList.remove('playing');
+            });
+            currentText.textContent = '已停止';
+            currentContext.textContent = '';
+        }
+
+        // 播放全部
+        function playAll() {
+            const filter = langFilter.value;
+            const filteredIndices = sentences
+                .map((s, i) => ({ s, i }))
+                .filter(({ s }) => filter === 'all' || s.lang === filter)
+                .map(({ i }) => i);
+
+            if (filteredIndices.length > 0) {
+                // 重置 played 狀態
+                document.querySelectorAll('.sentence-item').forEach(el => {
+                    el.classList.remove('played');
+                });
+                playMode = playModeSelect.value;
+                playSentence(filteredIndices[0]);
+            }
+        }
+
+        // 事件監聯
+        langFilter.addEventListener('change', renderSentences);
+        showChineseCheckbox.addEventListener('change', renderSentences);
+        playModeSelect.addEventListener('change', () => {
+            playMode = playModeSelect.value;
+        });
+        playAllBtn.addEventListener('click', playAll);
+        stopBtn.addEventListener('click', stopPlayback);
+
+        // 初始化
+        loadManifest();
+    </script>
+</body>
+
+</html>

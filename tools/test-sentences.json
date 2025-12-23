@@ -1,0 +1,524 @@
+{
+    "sentences": [
+        {
+            "id": "zh-01",
+            "lang": "zh",
+            "langName": "中文",
+            "text": "請問您今天哪裡不舒服？",
+            "chinese": "請問您今天哪裡不舒服？",
+            "context": "醫生問診"
+        },
+        {
+            "id": "zh-02",
+            "lang": "zh",
+            "langName": "中文",
+            "text": "我頭痛已經三天了，而且有點發燒。",
+            "chinese": "我頭痛已經三天了，而且有點發燒。",
+            "context": "病人描述症狀"
+        },
+        {
+            "id": "zh-03",
+            "lang": "zh",
+            "langName": "中文",
+            "text": "請問您對什麼藥物過敏嗎？",
+            "chinese": "請問您對什麼藥物過敏嗎？",
+            "context": "醫生詢問病史"
+        },
+        {
+            "id": "zh-04",
+            "lang": "zh",
+            "langName": "中文",
+            "text": "我對青黴素過敏，吃了會起疹子。",
+            "chinese": "我對青黴素過敏，吃了會起疹子。",
+            "context": "病人回答"
+        },
+        {
+            "id": "zh-05",
+            "lang": "zh",
+            "langName": "中文",
+            "text": "這個藥一天吃三次，每次一顆，飯後服用。",
+            "chinese": "這個藥一天吃三次，每次一顆，飯後服用。",
+            "context": "醫生開藥說明"
+        },
+        {
+            "id": "zh-06",
+            "lang": "zh",
+            "langName": "中文",
+            "text": "請問掛號要怎麼辦理？",
+            "chinese": "請問掛號要怎麼辦理？",
+            "context": "病人詢問"
+        },
+        {
+            "id": "zh-07",
+            "lang": "zh",
+            "langName": "中文",
+            "text": "您需要先到一樓服務台抽號碼牌。",
+            "chinese": "您需要先到一樓服務台抽號碼牌。",
+            "context": "護理師回答"
+        },
+        {
+            "id": "zh-08",
+            "lang": "zh",
+            "langName": "中文",
+            "text": "我的肚子很痛，痛了一整個晚上。",
+            "chinese": "我的肚子很痛，痛了一整個晚上。",
+            "context": "病人描述症狀"
+        },
+        {
+            "id": "zh-09",
+            "lang": "zh",
+            "langName": "中文",
+            "text": "請您先做一個血液檢查，報告大概兩個小時後出來。",
+            "chinese": "請您先做一個血液檢查，報告大概兩個小時後出來。",
+            "context": "醫生安排檢查"
+        },
+        {
+            "id": "zh-10",
+            "lang": "zh",
+            "langName": "中文",
+            "text": "謝謝醫生，請問下次什麼時候回診？",
+            "chinese": "謝謝醫生，請問下次什麼時候回診？",
+            "context": "病人詢問"
+        },
+        {
+            "id": "en-01",
+            "lang": "en",
+            "langName": "English",
+            "text": "What seems to be the problem today?",
+            "chinese": "請問您今天哪裡不舒服？",
+            "context": "Doctor asking"
+        },
+        {
+            "id": "en-02",
+            "lang": "en",
+            "langName": "English",
+            "text": "I've had a headache for three days and I have a slight fever.",
+            "chinese": "我頭痛已經三天了，而且有點發燒。",
+            "context": "Patient describing symptoms"
+        },
+        {
+            "id": "en-03",
+            "lang": "en",
+            "langName": "English",
+            "text": "Are you allergic to any medications?",
+            "chinese": "請問您對什麼藥物過敏嗎？",
+            "context": "Doctor asking medical history"
+        },
+        {
+            "id": "en-04",
+            "lang": "en",
+            "langName": "English",
+            "text": "I'm allergic to penicillin. It gives me a rash.",
+            "chinese": "我對青黴素過敏，吃了會起疹子。",
+            "context": "Patient response"
+        },
+        {
+            "id": "en-05",
+            "lang": "en",
+            "langName": "English",
+            "text": "Take this medicine three times a day, one tablet each time, after meals.",
+            "chinese": "這個藥一天吃三次，每次一顆，飯後服用。",
+            "context": "Doctor prescription"
+        },
+        {
+            "id": "en-06",
+            "lang": "en",
+            "langName": "English",
+            "text": "How do I register for an appointment?",
+            "chinese": "請問掛號要怎麼辦理？",
+            "context": "Patient asking"
+        },
+        {
+            "id": "en-07",
+            "lang": "en",
+            "langName": "English",
+            "text": "Please go to the service counter on the first floor and take a number.",
+            "chinese": "您需要先到一樓服務台抽號碼牌。",
+            "context": "Nurse response"
+        },
+        {
+            "id": "en-08",
+            "lang": "en",
+            "langName": "English",
+            "text": "I have severe stomach pain. It's been hurting all night.",
+            "chinese": "我的肚子很痛，痛了一整個晚上。",
+            "context": "Patient describing symptoms"
+        },
+        {
+            "id": "en-09",
+            "lang": "en",
+            "langName": "English",
+            "text": "We need to do a blood test first. The results will be ready in about two hours.",
+            "chinese": "請您先做一個血液檢查，報告大概兩個小時後出來。",
+            "context": "Doctor ordering tests"
+        },
+        {
+            "id": "en-10",
+            "lang": "en",
+            "langName": "English",
+            "text": "Thank you, doctor. When should I come back for a follow-up?",
+            "chinese": "謝謝醫生，請問下次什麼時候回診？",
+            "context": "Patient asking"
+        },
+        {
+            "id": "vi-01",
+            "lang": "vi",
+            "langName": "Tiếng Việt",
+            "text": "Hôm nay bạn cảm thấy không khỏe ở đâu?",
+            "chinese": "請問您今天哪裡不舒服？",
+            "context": "Bác sĩ hỏi"
+        },
+        {
+            "id": "vi-02",
+            "lang": "vi",
+            "langName": "Tiếng Việt",
+            "text": "Tôi bị đau đầu ba ngày rồi và có hơi sốt.",
+            "chinese": "我頭痛已經三天了，而且有點發燒。",
+            "context": "Bệnh nhân mô tả triệu chứng"
+        },
+        {
+            "id": "vi-03",
+            "lang": "vi",
+            "langName": "Tiếng Việt",
+            "text": "Bạn có bị dị ứng với loại thuốc nào không?",
+            "chinese": "請問您對什麼藥物過敏嗎？",
+            "context": "Bác sĩ hỏi tiền sử bệnh"
+        },
+        {
+            "id": "vi-04",
+            "lang": "vi",
+            "langName": "Tiếng Việt",
+            "text": "Tôi bị dị ứng với penicillin. Nó làm tôi bị nổi mẩn.",
+            "chinese": "我對青黴素過敏，吃了會起疹子。",
+            "context": "Bệnh nhân trả lời"
+        },
+        {
+            "id": "vi-05",
+            "lang": "vi",
+            "langName": "Tiếng Việt",
+            "text": "Uống thuốc này ba lần một ngày, mỗi lần một viên, sau bữa ăn.",
+            "chinese": "這個藥一天吃三次，每次一顆，飯後服用。",
+            "context": "Bác sĩ kê đơn"
+        },
+        {
+            "id": "vi-06",
+            "lang": "vi",
+            "langName": "Tiếng Việt",
+            "text": "Làm thế nào để đăng ký khám bệnh?",
+            "chinese": "請問掛號要怎麼辦理？",
+            "context": "Bệnh nhân hỏi"
+        },
+        {
+            "id": "vi-07",
+            "lang": "vi",
+            "langName": "Tiếng Việt",
+            "text": "Xin vui lòng đến quầy dịch vụ ở tầng một và lấy số.",
+            "chinese": "您需要先到一樓服務台抽號碼牌。",
+            "context": "Y tá trả lời"
+        },
+        {
+            "id": "vi-08",
+            "lang": "vi",
+            "langName": "Tiếng Việt",
+            "text": "Tôi bị đau bụng rất dữ. Đau suốt đêm qua.",
+            "chinese": "我的肚子很痛，痛了一整個晚上。",
+            "context": "Bệnh nhân mô tả triệu chứng"
+        },
+        {
+            "id": "vi-09",
+            "lang": "vi",
+            "langName": "Tiếng Việt",
+            "text": "Chúng tôi cần làm xét nghiệm máu trước. Kết quả sẽ có sau khoảng hai tiếng.",
+            "chinese": "請您先做一個血液檢查，報告大概兩個小時後出來。",
+            "context": "Bác sĩ yêu cầu xét nghiệm"
+        },
+        {
+            "id": "vi-10",
+            "lang": "vi",
+            "langName": "Tiếng Việt",
+            "text": "Cảm ơn bác sĩ. Khi nào tôi nên quay lại tái khám?",
+            "chinese": "謝謝醫生，請問下次什麼時候回診？",
+            "context": "Bệnh nhân hỏi"
+        },
+        {
+            "id": "id-01",
+            "lang": "id",
+            "langName": "Bahasa Indonesia",
+            "text": "Apa keluhan Anda hari ini?",
+            "chinese": "請問您今天哪裡不舒服？",
+            "context": "Dokter bertanya"
+        },
+        {
+            "id": "id-02",
+            "lang": "id",
+            "langName": "Bahasa Indonesia",
+            "text": "Saya sudah sakit kepala tiga hari dan sedikit demam.",
+            "chinese": "我頭痛已經三天了，而且有點發燒。",
+            "context": "Pasien menjelaskan gejala"
+        },
+        {
+            "id": "id-03",
+            "lang": "id",
+            "langName": "Bahasa Indonesia",
+            "text": "Apakah Anda alergi terhadap obat tertentu?",
+            "chinese": "請問您對什麼藥物過敏嗎？",
+            "context": "Dokter bertanya riwayat"
+        },
+        {
+            "id": "id-04",
+            "lang": "id",
+            "langName": "Bahasa Indonesia",
+            "text": "Saya alergi penisilin. Membuat saya ruam.",
+            "chinese": "我對青黴素過敏，吃了會起疹子。",
+            "context": "Pasien menjawab"
+        },
+        {
+            "id": "id-05",
+            "lang": "id",
+            "langName": "Bahasa Indonesia",
+            "text": "Minum obat ini tiga kali sehari, satu tablet setiap kali, setelah makan.",
+            "chinese": "這個藥一天吃三次，每次一顆，飯後服用。",
+            "context": "Dokter memberi resep"
+        },
+        {
+            "id": "id-06",
+            "lang": "id",
+            "langName": "Bahasa Indonesia",
+            "text": "Bagaimana cara mendaftar untuk janji temu?",
+            "chinese": "請問掛號要怎麼辦理？",
+            "context": "Pasien bertanya"
+        },
+        {
+            "id": "id-07",
+            "lang": "id",
+            "langName": "Bahasa Indonesia",
+            "text": "Silakan pergi ke loket layanan di lantai satu dan ambil nomor.",
+            "chinese": "您需要先到一樓服務台抽號碼牌。",
+            "context": "Perawat menjawab"
+        },
+        {
+            "id": "id-08",
+            "lang": "id",
+            "langName": "Bahasa Indonesia",
+            "text": "Perut saya sangat sakit. Sudah sakit semalaman.",
+            "chinese": "我的肚子很痛，痛了一整個晚上。",
+            "context": "Pasien menjelaskan gejala"
+        },
+        {
+            "id": "id-09",
+            "lang": "id",
+            "langName": "Bahasa Indonesia",
+            "text": "Kami perlu melakukan tes darah dulu. Hasilnya akan siap dalam dua jam.",
+            "chinese": "請您先做一個血液檢查，報告大概兩個小時後出來。",
+            "context": "Dokter memesan tes"
+        },
+        {
+            "id": "id-10",
+            "lang": "id",
+            "langName": "Bahasa Indonesia",
+            "text": "Terima kasih, dokter. Kapan saya harus kembali untuk kontrol?",
+            "chinese": "謝謝醫生，請問下次什麼時候回診？",
+            "context": "Pasien bertanya"
+        },
+        {
+            "id": "th-01",
+            "lang": "th",
+            "langName": "ภาษาไทย",
+            "text": "วันนี้คุณมีอาการอะไรคะ?",
+            "chinese": "請問您今天哪裡不舒服？",
+            "context": "หมอถาม"
+        },
+        {
+            "id": "th-02",
+            "lang": "th",
+            "langName": "ภาษาไทย",
+            "text": "ฉันปวดหัวมาสามวันแล้วและมีไข้เล็กน้อย",
+            "chinese": "我頭痛已經三天了，而且有點發燒。",
+            "context": "คนไข้อธิบายอาการ"
+        },
+        {
+            "id": "th-03",
+            "lang": "th",
+            "langName": "ภาษาไทย",
+            "text": "คุณแพ้ยาอะไรบ้างไหมคะ?",
+            "chinese": "請問您對什麼藥物過敏嗎？",
+            "context": "หมอถามประวัติ"
+        },
+        {
+            "id": "th-04",
+            "lang": "th",
+            "langName": "ภาษาไทย",
+            "text": "ฉันแพ้เพนนิซิลิน มันทำให้ฉันเป็นผื่น",
+            "chinese": "我對青黴素過敏，吃了會起疹子。",
+            "context": "คนไข้ตอบ"
+        },
+        {
+            "id": "th-05",
+            "lang": "th",
+            "langName": "ภาษาไทย",
+            "text": "ทานยานี้วันละสามครั้ง ครั้งละหนึ่งเม็ดหลังอาหาร",
+            "chinese": "這個藥一天吃三次，每次一顆，飯後服用。",
+            "context": "หมอสั่งยา"
+        },
+        {
+            "id": "th-06",
+            "lang": "th",
+            "langName": "ภาษาไทย",
+            "text": "ฉันจะลงทะเบียนนัดหมายได้อย่างไรคะ?",
+            "chinese": "請問掛號要怎麼辦理？",
+            "context": "คนไข้ถาม"
+        },
+        {
+            "id": "th-07",
+            "lang": "th",
+            "langName": "ภาษาไทย",
+            "text": "กรุณาไปที่เคาน์เตอร์บริการชั้นหนึ่งเพื่อรับบัตรคิวค่ะ",
+            "chinese": "您需要先到一樓服務台抽號碼牌。",
+            "context": "พยาบาลตอบ"
+        },
+        {
+            "id": "th-08",
+            "lang": "th",
+            "langName": "ภาษาไทย",
+            "text": "ท้องฉันปวดมาก ปวดมาทั้งคืน",
+            "chinese": "我的肚子很痛，痛了一整個晚上。",
+            "context": "คนไข้อธิบายอาการ"
+        },
+        {
+            "id": "th-09",
+            "lang": "th",
+            "langName": "ภาษาไทย",
+            "text": "เราต้องตรวจเลือดก่อนค่ะ ผลจะออกในประมาณสองชั่วโมง",
+            "chinese": "請您先做一個血液檢查，報告大概兩個小時後出來。",
+            "context": "หมอสั่งตรวจ"
+        },
+        {
+            "id": "th-10",
+            "lang": "th",
+            "langName": "ภาษาไทย",
+            "text": "ขอบคุณค่ะหมอ ฉันควรกลับมาตรวจอีกเมื่อไหร่คะ?",
+            "chinese": "謝謝醫生，請問下次什麼時候回診？",
+            "context": "คนไข้ถาม"
+        },
+        {
+            "id": "ja-01",
+            "lang": "ja",
+            "langName": "日本語",
+            "text": "今日はどこが具合悪いですか？",
+            "chinese": "請問您今天哪裡不舒服？",
+            "context": "医師の質問"
+        },
+        {
+            "id": "ja-02",
+            "lang": "ja",
+            "langName": "日本語",
+            "text": "三日間頭痛があり、少し熱もあります。",
+            "chinese": "我頭痛已經三天了，而且有點發燒。",
+            "context": "患者の症状説明"
+        },
+        {
+            "id": "ja-03",
+            "lang": "ja",
+            "langName": "日本語",
+            "text": "何か薬にアレルギーはありますか？",
+            "chinese": "請問您對什麼藥物過敏嗎？",
+            "context": "医師の病歴確認"
+        },
+        {
+            "id": "ja-04",
+            "lang": "ja",
+            "langName": "日本語",
+            "text": "ペニシリンにアレルギーがあります。発疹が出ます。",
+            "chinese": "我對青黴素過敏，吃了會起疹子。",
+            "context": "患者の回答"
+        },
+        {
+            "id": "ja-05",
+            "lang": "ja",
+            "langName": "日本語",
+            "text": "この薬を一日三回、毎食後に一錠ずつ服用してください。",
+            "chinese": "這個藥一天吃三次，每次一顆，飯後服用。",
+            "context": "医師の処方説明"
+        },
+        {
+            "id": "ja-06",
+            "lang": "ja",
+            "langName": "日本語",
+            "text": "予約の登録はどうすればいいですか？",
+            "chinese": "請問掛號要怎麼辦理？",
+            "context": "患者の質問"
+        },
+        {
+            "id": "ja-07",
+            "lang": "ja",
+            "langName": "日本語",
+            "text": "一階のサービスカウンターで番号札をお取りください。",
+            "chinese": "您需要先到一樓服務台抽號碼牌。",
+            "context": "看護師の回答"
+        },
+        {
+            "id": "ja-08",
+            "lang": "ja",
+            "langName": "日本語",
+            "text": "お腹がとても痛いです。一晩中痛んでいます。",
+            "chinese": "我的肚子很痛，痛了一整個晚上。",
+            "context": "患者の症状説明"
+        },
+        {
+            "id": "ja-09",
+            "lang": "ja",
+            "langName": "日本語",
+            "text": "まず血液検査が必要です。結果は約二時間後に出ます。",
+            "chinese": "請您先做一個血液檢查，報告大概兩個小時後出來。",
+            "context": "医師の検査指示"
+        },
+        {
+            "id": "ja-10",
+            "lang": "ja",
+            "langName": "日本語",
+            "text": "ありがとうございます、先生。次はいつ来ればいいですか？",
+            "chinese": "謝謝醫生，請問下次什麼時候回診？",
+            "context": "患者の質問"
+        }
+    ],
+    "voices": {
+        "zh": "nova",
+        "en": "alloy",
+        "vi": "shimmer",
+        "id": "echo",
+        "th": "fable",
+        "ja": "nova"
+    },
+    "voiceOptions": [
+        {
+            "id": "alloy",
+            "name": "Alloy",
+            "description": "中性、平衡"
+        },
+        {
+            "id": "echo",
+            "name": "Echo",
+            "description": "男性、溫暖"
+        },
+        {
+            "id": "fable",
+            "name": "Fable",
+            "description": "英式、敘事"
+        },
+        {
+            "id": "onyx",
+            "name": "Onyx",
+            "description": "男性、深沉"
+        },
+        {
+            "id": "nova",
+            "name": "Nova",
+            "description": "女性、友善"
+        },
+        {
+            "id": "shimmer",
+            "name": "Shimmer",
+            "description": "女性、清晰"
+        }
+    ]
+}

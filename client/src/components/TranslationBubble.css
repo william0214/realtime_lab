@@ -1,0 +1,91 @@
+/* src/components/TranslationBubble.css */
+
+.translation-bubble {
+    background: #2a2a2a;
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+/* Streaming 狀態：紫色漸層 + 脈動 */
+.translation-bubble.streaming {
+    background: linear-gradient(135deg, #2a2a2a 0%, #3a3a4a 100%);
+    border: 1px solid #4a4a5a;
+    animation: streamingPulse 1.5s ease-in-out infinite;
+}
+
+/* 累積中狀態：綠色漸層 + 虛線邊框 */
+.translation-bubble.accumulating {
+    background: linear-gradient(135deg, #2a3a2a 0%, #3a4a3a 100%);
+    border: 1px dashed #5a8a5a;
+    border-right: 3px solid #4caf50;
+}
+
+/* 標頭區 */
+.bubble-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.lang-pair {
+    color: #888;
+    font-weight: 500;
+}
+
+.timestamp {
+    color: #666;
+}
+
+/* 原文區塊 */
+.bubble-source {
+    color: #ccc;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #333;
+}
+
+/* 譯文區塊 */
+.bubble-target {
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 500;
+    white-space: pre-wrap;
+}
+
+/* 脈動動畫 */
+@keyframes streamingPulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(106, 90, 205, 0);
+    }
+
+    50% {
+        opacity: 0.95;
+        box-shadow: 0 0 8px 2px rgba(106, 90, 205, 0.3);
+    }
+}
+
+/* 累積中狀態的脈動 */
+.translation-bubble.accumulating {
+    animation: accumulatingPulse 2s ease-in-out infinite;
+}
+
+@keyframes accumulatingPulse {
+
+    0%,
+    100% {
+        border-color: #5a8a5a;
+    }
+
+    50% {
+        border-color: #4caf50;
+    }
+}
