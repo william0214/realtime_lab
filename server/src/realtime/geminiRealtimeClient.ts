@@ -36,6 +36,9 @@ export class GeminiRealtimeClient extends EventEmitter implements IRealtimeClien
     // 語音設定
     private voice: string = 'Kore';
 
+    // 領域設定
+    private domain: string = '';
+
     // VAD 設定
     private vadEnabled: boolean = true;
     private startSensitivity: 'START_SENSITIVITY_HIGH' | 'START_SENSITIVITY_LOW' = 'START_SENSITIVITY_HIGH';
@@ -68,6 +71,7 @@ export class GeminiRealtimeClient extends EventEmitter implements IRealtimeClien
         if (options.targetLang) this.targetLang = options.targetLang;
         if (options.autoReconnect !== undefined) this.autoReconnect = options.autoReconnect;
         if (options.voice) this.voice = options.voice;
+        if (options.domain) this.domain = options.domain;
         
         // 初始化 session ID
         this.sessionId = `gemini_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -155,12 +159,20 @@ export class GeminiRealtimeClient extends EventEmitter implements IRealtimeClien
     }
 
     private buildInstructions(): string {
+        const domainHint = this.domain
+            ? `你正在${this.domain}領域的場景中工作。請使用該領域的專業術語。`
+            : '';
+        const ragHint = this.domain && this.domain !== 'general'
+            ? `\n當你在語音中偵測到可能的專業術語時，請呼叫 lookup_glossary 工具查詢正確的翻譯用語，再進行翻譯。`
+            : '';
         return `
 你是一個即時口語翻譯助手。
 - 說話者語言：${this.sourceLang}
 - 目標語言：${this.targetLang}
+${domainHint}${ragHint}
 請將使用者的語音翻譯成目標語言。
-回應要短、自然，適合醫療場域顯示。
+理解說話者的意圖，將口語化表達改寫為專業、完整的句子。
+回應要短、自然，適合即時顯示。
 只輸出翻譯結果，不要加入額外的解釋或說明。`.trim();
     }
 
@@ -335,7 +347,53 @@ export class GeminiRealtimeClient extends EventEmitter implements IRealtimeClien
         });
     }
 
+    private buildToolDeclarations(): object[] | undefined {
+        // 只在非 general 領域啟用 glossary 工具
+        if (!this.domain || this.domain === 'general') return undefined;
+        return [{
+            functionDeclarations: [{
+                name: 'lookup_glossary',
+                description: '查詢該領域的專業術語翻譯和定義。當語音中出現可能的專業術語時呼叫此工具，以確保翻譯使用正確的專業用語。',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        query: {
+                            type: 'string',
+                            description: '要查詢的術語或短語',
+                        }
+                    },
+                    required: ['query'],
+                },
+            }]
+        }];
+    }
+
+    /**
+     * 發送 tool call 的回應給 Gemini
+     */
+    sendToolResponse(functionCallId: string, result: object): void {
+        if (!this.isConnected || !this.ws) {
+            console.error('🚨 [Gemini] Not connected, cannot send tool response');
+            return;
+        }
+
+        const message = {
+            toolResponse: {
+                functionResponses: [{
+                    id: functionCallId,
+                    name: 'lookup_glossary',
+                    response: result,
+                }]
+            }
+        };
+
+        console.log(`📤 [Gemini] Sending tool response for ${functionCallId}`);
+        this.logSessionEvent('tool_response_sent', { functionCallId, result });
+        this.ws.send(JSON.stringify(message));
+    }
+
     private sendSetup(): void {
+        const tools = this.buildToolDeclarations();
         const setup = {
             setup: {
                 model: this.model,
@@ -352,6 +410,7 @@ export class GeminiRealtimeClient extends EventEmitter implements IRealtimeClien
                 systemInstruction: {
                     parts: [{ text: this.buildInstructions() }]
                 },
+                ...(tools ? { tools } : {}),
                 realtimeInputConfig: {
                     automaticActivityDetection: {
                         disabled: !this.vadEnabled,
@@ -480,10 +539,25 @@ export class GeminiRealtimeClient extends EventEmitter implements IRealtimeClien
             }
         }
 
-        // 工具呼叫（如果有設定）
+        // 工具呼叫（glossary lookup 等）
         if (message.toolCall) {
-            console.log('📥 [Gemini] Tool call:', message.toolCall);
-            this.emit('tool_call', message.toolCall);
+            const toolCall = message.toolCall as {
+                functionCalls?: Array<{
+                    id: string;
+                    name: string;
+                    args: Record<string, unknown>;
+                }>;
+            };
+            if (toolCall.functionCalls) {
+                for (const fc of toolCall.functionCalls) {
+                    console.log(`📥 [Gemini] Tool call: ${fc.name}(${JSON.stringify(fc.args)}) id=${fc.id}`);
+                    this.logSessionEvent('tool_call', { id: fc.id, name: fc.name, args: fc.args });
+                    this.emit('tool_call', { id: fc.id, name: fc.name, args: fc.args });
+                }
+            } else {
+                console.log('📥 [Gemini] Tool call (unknown format):', message.toolCall);
+                this.emit('tool_call', message.toolCall);
+            }
         }
 
         // 錯誤處理

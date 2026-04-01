@@ -3,6 +3,26 @@ import { useSocket, ConnectionStatus, LangCode, AccumulatedEntry } from './hooks
 import { useContinuousRecorder } from './hooks/useContinuousRecorder';
 import './App.css';
 
+// 領域選項
+type DomainCode = 'medical' | 'legal' | 'finance' | 'tech' | 'business' | 'aviation' | 'general';
+
+interface DomainOption {
+    code: DomainCode;
+    label: string;
+    icon: string;
+    speakerLabels: { source: string; target: string };
+}
+
+const DOMAINS: DomainOption[] = [
+    { code: 'general', label: '通用', icon: '🌐', speakerLabels: { source: '說話者 A', target: '說話者 B' } },
+    { code: 'medical', label: '醫療', icon: '🏥', speakerLabels: { source: '醫護人員', target: '病人' } },
+    { code: 'legal', label: '法律', icon: '⚖️', speakerLabels: { source: '律師', target: '當事人' } },
+    { code: 'finance', label: '金融', icon: '💰', speakerLabels: { source: '顧問', target: '客戶' } },
+    { code: 'tech', label: '科技', icon: '💻', speakerLabels: { source: '工程師', target: '客戶' } },
+    { code: 'business', label: '商務', icon: '💼', speakerLabels: { source: '主持人', target: '與會者' } },
+    { code: 'aviation', label: '航空', icon: '✈️', speakerLabels: { source: '簽派/機長', target: '航管/組員' } },
+];
+
 // 語言選項
 const LANGUAGES: { code: LangCode; label: string }[] = [
     { code: 'zh-TW', label: '繁體中文' },
@@ -32,6 +52,10 @@ function App() {
 
     const [sourceLang, setSourceLang] = useState<LangCode>('zh-TW');
     const [targetLang, setTargetLang] = useState<LangCode>('en');
+    const [domain, setDomain] = useState<DomainCode>('general');
+
+    // 取得當前領域配置
+    const currentDomain = DOMAINS.find(d => d.code === domain) || DOMAINS[0];
 
     // 自動捲動的 ref
     const sourceBottomRef = useRef<HTMLDivElement | null>(null);
@@ -77,12 +101,12 @@ function App() {
         }
     }, [accumulatedTranslations.length]);  // 移除 clearTranslations 依賴項以避免無限循環
 
-    // 語言變更時通知後端
+    // 語言或領域變更時通知後端
     useEffect(() => {
         if (status === 'connected') {
-            updateConfig(sourceLang, targetLang);
+            updateConfig(sourceLang, targetLang, domain);
         }
-    }, [sourceLang, targetLang, status, updateConfig]);
+    }, [sourceLang, targetLang, domain, status, updateConfig]);
 
     // 產生統一的 items 陣列（使用累積型翻譯）
     const items: DisplayEntry[] = useMemo(() => {
@@ -170,10 +194,27 @@ function App() {
                 </div>
             </header>
 
-            {/* 語言選擇列 */}
+            {/* 領域 + 語言選擇列 */}
             <div className="lang-bar">
                 <div className="lang-select-group">
-                    <label>護理端 (來源語言)</label>
+                    <label>專業領域</label>
+                    <select
+                        value={domain}
+                        onChange={(e) => setDomain(e.target.value as DomainCode)}
+                        disabled={status !== 'connected'}
+                    >
+                        {DOMAINS.map((d) => (
+                            <option key={d.code} value={d.code}>
+                                {d.icon} {d.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <span className="lang-arrow">|</span>
+
+                <div className="lang-select-group">
+                    <label>{currentDomain.speakerLabels.source} (來源語言)</label>
                     <select
                         value={sourceLang}
                         onChange={(e) => setSourceLang(e.target.value as LangCode)}
@@ -190,7 +231,7 @@ function App() {
                 <span className="lang-arrow">→</span>
 
                 <div className="lang-select-group">
-                    <label>病人端 (目標語言)</label>
+                    <label>{currentDomain.speakerLabels.target} (目標語言)</label>
                     <select
                         value={targetLang}
                         onChange={(e) => setTargetLang(e.target.value as LangCode)}
@@ -210,7 +251,7 @@ function App() {
                 <div className="translation-container">
                     <div className="translation-column source">
                         <div className="column-header">
-                            <h3>🎤 護理端</h3>
+                            <h3>🎤 {currentDomain.speakerLabels.source}</h3>
                             <span className="lang-badge">{LANGUAGES.find(l => l.code === sourceLang)?.label}</span>
                         </div>
                         <div className="translation-list">
@@ -243,7 +284,7 @@ function App() {
 
                     <div className="translation-column target">
                         <div className="column-header">
-                            <h3>🔊 病人端</h3>
+                            <h3>🔊 {currentDomain.speakerLabels.target}</h3>
                             <span className="lang-badge">{LANGUAGES.find(l => l.code === targetLang)?.label}</span>
                         </div>
                         <div className="translation-list">
@@ -259,7 +300,14 @@ function App() {
                                             key={entry.id}
                                             className={`translation-item ${entry._isStreaming ? 'streaming' : ''} ${showAccumulating ? 'accumulating' : ''}`}
                                         >
-                                            <p>{entry.displayTargetText || entry.targetText || '⏳ 等待翻譯...'}</p>
+                                            <p>
+                                                {entry.displayTargetText || entry.targetText || '⏳ 等待翻譯...'}
+                                                {entry.confidence && entry.confidence !== 'high' && (
+                                                    <span className="confidence-warning" title={entry.confidence === 'low' ? '語意不完整，翻譯為推測' : '部分語意為推測'}>
+                                                        {' '}⚠️
+                                                    </span>
+                                                )}
+                                            </p>
                                             <span className="translation-time">
                                                 {formatTime(entry.timestamp)}
                                                 {entry._isStreaming && ' · 翻譯中…'}

@@ -13,6 +13,7 @@ export interface IRealtimeClientOptions {
     sourceLang?: string;
     targetLang?: string;
     autoReconnect?: boolean;
+    domain?: string;
 }
 
 /**
@@ -24,6 +25,7 @@ export interface TranslationResult {
     targetLang: string;
     textSource: string;
     textTarget: string;
+    confidence?: 'high' | 'medium' | 'low';
 }
 
 /**
@@ -77,6 +79,9 @@ export interface IRealtimeClient {
     /** 發送使用者文字訊息 */
     sendUserMessage(text: string): void;
 
+    /** 發送工具呼叫的回應（如 glossary lookup 結果）*/
+    sendToolResponse?(functionCallId: string, result: object): void;
+
     /** 設定自動重連 */
     setAutoReconnect(enabled: boolean): void;
 
@@ -95,6 +100,7 @@ export interface IRealtimeClient {
     on(event: 'reconnecting', listener: (info: ReconnectInfo) => void): this;
     on(event: 'reconnected', listener: () => void): this;
     on(event: 'reconnect_failed', listener: (info: { attempts: number }) => void): this;
+    on(event: 'tool_call', listener: (call: { id: string; name: string; args: Record<string, unknown> }) => void): this;
 
     // 便捷方法
     onText(callback: (text: string) => void): void;

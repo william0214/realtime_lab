@@ -37,6 +37,9 @@ export class OpenAIRealtimeClient extends EventEmitter {
     private sourceLang: string = 'zh-TW';
     private targetLang: string = 'en';
 
+    // 領域設定
+    private domain: string = '';
+
     // Server VAD 設定 - 調低閾值讓較短停頓也能觸發分段
     private vadThreshold: number = 0.3;          // 降低：0.5 -> 0.3（更敏感）
     private vadSilenceDurationMs: number = 300;  // 降低：600 -> 300（300ms 停頓就分段）
@@ -62,6 +65,7 @@ export class OpenAIRealtimeClient extends EventEmitter {
         if (options.sourceLang) this.sourceLang = options.sourceLang;
         if (options.targetLang) this.targetLang = options.targetLang;
         if (options.autoReconnect !== undefined) this.autoReconnect = options.autoReconnect;
+        if ((options as any).domain) this.domain = (options as any).domain;
 
         // 初始化 session ID
         this.sessionId = `openai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -272,12 +276,17 @@ export class OpenAIRealtimeClient extends EventEmitter {
 
     // 建立翻譯專用的 system prompt
     private buildInstructions(): string {
+        const domainHint = this.domain
+            ? `你正在${this.domain}領域的場景中工作。請使用該領域的專業術語。`
+            : '';
         return `
 你是一個即時口語翻譯助手。
 - 說話者語言：${this.sourceLang}
 - 目標語言：${this.targetLang}
+${domainHint}
 先把輸入語音正確辨識成文字，再翻譯成目標語言。
-回應要短、自然，適合醫療場域顯示。`.trim();
+理解說話者的意圖，將口語化表達改寫為專業、完整的句子。
+回應要短、自然，適合即時顯示。`.trim();
     }
 
     /**

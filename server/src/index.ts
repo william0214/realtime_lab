@@ -9,6 +9,9 @@ import { createRealtimeClient, IRealtimeClient, RealtimeProvider } from './realt
 import { convertToPCM16, convertAccumulatedToPCM16, convertAccumulatedIncrementally, appendAudioChunk, resetAudioBuffer, checkFFmpeg, hasEnoughNewData, setTargetSampleRate } from './utils/audioConverter';
 import { TranslationService, type LangCode } from './services/translationService';
 import { getVADService, type VADConfig } from './services/vadService';
+import { type DomainCode, getDomainConfig, getAllDomains, isValidDomain } from './services/domainService';
+import { getVectorStore } from './services/vectorStore';
+import { getMeetingService } from './services/meetingService';
 
 // 載入環境變數
 dotenv.config();
@@ -90,10 +93,15 @@ const CONFIG = {
 interface SocketConfig {
     sourceLang: LangCode;
     targetLang: LangCode;
+    domain: DomainCode;
+    audioSource?: 'mic' | 'system'; // 目前音訊來源（用於雙流 speaker 標記）
 }
 
 // 儲存每個連線的設定
 const socketConfigs = new Map<string, SocketConfig>();
+
+// 每個 socket 的活躍會議 ID（全域可存取，供 transcription handler 使用）
+const socketMeetings = new Map<string, string>();
 
 // 初始化即時翻譯客戶端（支援 OpenAI 或 Gemini）
 function initRealtimeClient(): IRealtimeClient {
@@ -124,6 +132,63 @@ const realtimeClient = initRealtimeClient();
 
 // 初始化翻譯服務（Prompt 設定在 services/translationService.ts）
 const translationService = new TranslationService(process.env.OPENAI_API_KEY || '');
+
+// 初始化 VectorStore（RAG 術語庫）— 非阻塞初始化
+const vectorStore = (() => {
+    try {
+        const store = getVectorStore();
+        store.init().then(() => {
+            const stats = store.getStats();
+            const total = Object.values(stats).reduce((a, b) => a + b, 0);
+            if (total > 0) {
+                console.log(`📚 [VectorStore] Ready: ${JSON.stringify(stats)}`);
+            } else {
+                console.log('📚 [VectorStore] Ready (empty — run seedGlossary.ts to load terms)');
+            }
+        }).catch(err => {
+            console.warn('⚠️ [VectorStore] Init failed (RAG disabled):', err.message);
+        });
+        return store;
+    } catch {
+        console.warn('⚠️ [VectorStore] Not available (OPENAI_API_KEY missing?)');
+        return null;
+    }
+})();
+
+// 註冊 Gemini tool_call 事件處理（glossary lookup）
+realtimeClient.on('tool_call', async (call: { id: string; name: string; args: Record<string, unknown> }) => {
+    if (call.name === 'lookup_glossary' && vectorStore) {
+        const query = String(call.args.query || '');
+        // 取得當前 domain（從最近的 socket config）
+        const configs = Array.from(socketConfigs.values());
+        const currentDomain = (configs[configs.length - 1]?.domain || 'general') as DomainCode;
+
+        console.log(`📚 [RAG] lookup_glossary("${query}") domain=${currentDomain}`);
+
+        try {
+            const results = await vectorStore.queryGlossary(currentDomain, query, 3);
+            const glossaryResult = {
+                terms: results.map(r => ({
+                    term: r.entry.term,
+                    termEn: r.entry.termEn,
+                    definition: r.entry.definition,
+                    score: Math.round(r.score * 100) / 100,
+                })),
+            };
+
+            console.log(`📚 [RAG] Found ${results.length} terms:`, glossaryResult.terms.map(t => t.term));
+
+            if (realtimeClient.sendToolResponse) {
+                realtimeClient.sendToolResponse(call.id, glossaryResult);
+            }
+        } catch (err) {
+            console.error('🚨 [RAG] Glossary lookup failed:', err);
+            if (realtimeClient.sendToolResponse) {
+                realtimeClient.sendToolResponse(call.id, { terms: [], error: 'lookup failed' });
+            }
+        }
+    }
+});
 
 // 初始化 VAD 服務（過濾背景雜音）
 const vadService = getVADService({
@@ -171,14 +236,37 @@ app.get('/api/provider', (req, res) => {
     });
 });
 
-// 翻譯函數（委派給 TranslationService）
+// 取得所有支援的專業領域
+app.get('/api/domains', (_req, res) => {
+    res.json({ domains: getAllDomains() });
+});
+
+// 翻譯函數（委派給 TranslationService + RAG 術語查詢）
 // 📝 修改翻譯 Prompt 請到 services/translationService.ts
 async function translateText(
     text: string,
     sourceLang: LangCode,
-    targetLang: LangCode
-): Promise<string> {
-    return translationService.translateText(text, sourceLang, targetLang);
+    targetLang: LangCode,
+    domain: DomainCode = 'general'
+): Promise<{ translation: string; confidence?: 'high' | 'medium' | 'low' }> {
+    // RAG：查詢相關術語注入 prompt
+    let glossaryHints: Array<{ term: string; termEn: string; definition: string }> | undefined;
+    if (vectorStore && domain !== 'general') {
+        try {
+            const results = await vectorStore.queryGlossary(domain, text, 3);
+            if (results.length > 0) {
+                glossaryHints = results.map(r => ({
+                    term: r.entry.term,
+                    termEn: r.entry.termEn,
+                    definition: r.entry.definition,
+                }));
+                console.log(`📚 [RAG] Injecting ${glossaryHints.length} glossary terms into translation prompt`);
+            }
+        } catch (err) {
+            console.warn('⚠️ [RAG] Glossary query failed, translating without RAG:', err);
+        }
+    }
+    return translationService.translateText(text, sourceLang, targetLang, domain, glossaryHints);
 }
 
 // 記錄當前處理翻譯的 socket
@@ -208,9 +296,10 @@ const TRANSLATION_DEBOUNCE_MS = 800;   // fallback: 800ms 沒有新字也翻譯
 async function translateTextLight(
     text: string,
     sourceLang: LangCode,
-    targetLang: LangCode
+    targetLang: LangCode,
+    domain: DomainCode = 'general'
 ): Promise<string> {
-    return translationService.translateTextLight(text, sourceLang, targetLang);
+    return translationService.translateTextLight(text, sourceLang, targetLang, domain);
 }
 
 // 註冊 Realtime API 文字回調 - 收到 AI 回覆時廣播給所有前端
@@ -274,6 +363,7 @@ realtimeClient.onTranscriptDelta((delta, accumulated) => {
     const config = socketConfigs.get(socket.id) || {
         sourceLang: CONFIG.languages.defaultSource,
         targetLang: CONFIG.languages.defaultTarget,
+        domain: 'general' as DomainCode,
     };
 
     // 如果沒有進行中的 streaming，建立新的
@@ -329,7 +419,8 @@ realtimeClient.onTranscriptDelta((delta, accumulated) => {
                     const translation = await translateTextLight(
                         currentAccumulated,
                         config.sourceLang,
-                        config.targetLang
+                        config.targetLang,
+                        config.domain
                     );
 
                     // 確認狀態還存在且是同一個 ID
@@ -376,7 +467,8 @@ realtimeClient.onTranscriptDelta((delta, accumulated) => {
                     const translation = await translateTextLight(
                         currentAccumulated,
                         config.sourceLang,
-                        config.targetLang
+                        config.targetLang,
+                        config.domain
                     );
 
                     if (currentStreamingState && currentStreamingState.id === currentStateId) {
@@ -440,6 +532,7 @@ realtimeClient.onTranscript(async (transcript) => {
     const config = socketConfigs.get(socket.id) || {
         sourceLang: CONFIG.languages.defaultSource,
         targetLang: CONFIG.languages.defaultTarget,
+        domain: 'general' as DomainCode,
     };
 
     // 立即捕獲當前狀態，避免異步期間狀態被其他 transcript 修改
@@ -465,9 +558,20 @@ realtimeClient.onTranscript(async (transcript) => {
     const detectedLang = await detectLanguage(transcript);
     console.log(`🔍 Detected language: ${detectedLang}`);
 
-    // 判斷方向：如果偵測到的語言是目標語言（病人端），則反向翻譯
-    const isReverse = detectedLang === config.targetLang ||
-        (detectedLang !== config.sourceLang && detectedLang !== 'zh-TW');
+    // 判斷方向：
+    //   1. 若有明確的 audioSource（雙流模式），system = 對方說的（反向），mic = 自己說的（正向）
+    //   2. 否則回落至語言偵測
+    let isReverse: boolean;
+    if (config.audioSource === 'system') {
+        isReverse = true;
+        console.log(`🔄 Dual-stream: system audio → reverse mode`);
+    } else if (config.audioSource === 'mic') {
+        isReverse = false;
+        console.log(`➡️  Dual-stream: mic audio → forward mode`);
+    } else {
+        isReverse = detectedLang === config.targetLang ||
+            (detectedLang !== config.sourceLang && detectedLang !== 'zh-TW');
+    }
 
     let actualSourceLang: LangCode;
     let actualTargetLang: LangCode;
@@ -495,9 +599,11 @@ realtimeClient.onTranscript(async (transcript) => {
     });
 
     // 正式翻譯（使用完整的 translateText 函數）
-    console.log(`🌐 Final translating: ${actualSourceLang} -> ${actualTargetLang}`);
-    const translatedText = await translateText(transcript, actualSourceLang, actualTargetLang);
-    console.log(`🌐 Final translated: ${translatedText}`);
+    console.log(`🌐 Final translating: ${actualSourceLang} -> ${actualTargetLang} [${config.domain}]`);
+    const result = await translateText(transcript, actualSourceLang, actualTargetLang, config.domain);
+    const translatedText = result.translation;
+    const confidence = result.confidence;
+    console.log(`🌐 Final translated: ${translatedText} (confidence: ${confidence || 'N/A'})`);
 
     // 使用捕獲的停頓標記（已在函數開頭捕獲）
     const isParagraphEnd = capturedSpeechStopped;
@@ -513,10 +619,25 @@ realtimeClient.onTranscript(async (transcript) => {
         isReverse,
         timestamp,
         isParagraphEnd,  // 新增：段落結束標記
+        confidence,      // 新增：翻譯信心度
     };
 
     socket.emit('translate_final', translationEntry);
     socket.emit('translation', translationEntry);
+
+    // ---- 會議記錄：加入逐字稿 ----
+    const meetingId = socketMeetings.get(socket.id);
+    if (meetingId) {
+        getMeetingService().addUtterance(meetingId, {
+            speaker: isReverse ? 'target' : 'source',
+            sourceText: transcript,
+            translatedText,
+            sourceLang: actualSourceLang,
+            targetLang: actualTargetLang,
+            isReverse,
+            confidence,
+        });
+    }
 });
 
 // Socket.io 連線處理
@@ -527,6 +648,7 @@ io.on('connection', (socket) => {
     socketConfigs.set(socket.id, {
         sourceLang: CONFIG.languages.defaultSource,
         targetLang: CONFIG.languages.defaultTarget,
+        domain: 'general' as DomainCode,
     });
 
     // 歡迎訊息
@@ -544,11 +666,13 @@ io.on('connection', (socket) => {
     });
 
     // 監聽語言設定更新
-    socket.on('config:update', (data: { sourceLang: LangCode; targetLang: LangCode }) => {
-        console.log(`🌐 Config update from ${socket.id}: ${data.sourceLang} -> ${data.targetLang}`);
+    socket.on('config:update', (data: { sourceLang: LangCode; targetLang: LangCode; domain?: string }) => {
+        const domain = (data.domain && isValidDomain(data.domain)) ? data.domain as DomainCode : 'general';
+        console.log(`🌐 Config update from ${socket.id}: ${data.sourceLang} -> ${data.targetLang} [${domain}]`);
         socketConfigs.set(socket.id, {
             sourceLang: data.sourceLang,
             targetLang: data.targetLang,
+            domain,
         });
     });
 
@@ -619,11 +743,28 @@ io.on('connection', (socket) => {
     };
 
     // 監聽音訊資料 (連續錄音模式，累積 webm 片段)
-    socket.on('audio:chunk', async (buffer: ArrayBuffer) => {
-        console.log(`🎤 Received audio chunk from ${socket.id}: ${buffer.byteLength} bytes`);
+    socket.on('audio:chunk', async (payload: ArrayBuffer | { buffer: ArrayBuffer; source?: 'mic' | 'system' }) => {
+        // 兼容舊格式（純 ArrayBuffer）與新格式（{ buffer, source }）
+        let buffer: ArrayBuffer;
+        let source: 'mic' | 'system' = 'mic';
 
-        // 記錄當前處理的 socket
+        if (payload instanceof ArrayBuffer || ArrayBuffer.isView(payload)) {
+            buffer = payload instanceof ArrayBuffer ? payload : (payload as ArrayBufferView).buffer;
+        } else if (payload && typeof payload === 'object' && 'buffer' in payload) {
+            buffer = (payload as { buffer: ArrayBuffer }).buffer;
+            source = (payload as { buffer: ArrayBuffer; source?: 'mic' | 'system' }).source ?? 'mic';
+        } else {
+            buffer = payload as unknown as ArrayBuffer;
+        }
+
+        console.log(`🎤 Received audio chunk from ${socket.id}: ${buffer.byteLength} bytes [source=${source}]`);
+
+        // 記錄當前處理的 socket 及音訊來源
         currentTranslationSocket = socket;
+        const currentConfig = socketConfigs.get(socket.id);
+        if (currentConfig) {
+            currentConfig.audioSource = source;
+        }
 
         // 累積 webm 片段
         appendAudioChunk(buffer);
@@ -675,6 +816,70 @@ io.on('connection', (socket) => {
         vadService.reset();
     });
 
+    // ---- 會議管理事件 ----
+
+    // 追蹤本 socket 的活躍會議 ID
+    let activeMeetingId: string | null = null;
+
+    /** 開始會議 */
+    socket.on('meeting:start', (data: { domain?: string }) => {
+        const config = socketConfigs.get(socket.id);
+        const domain: DomainCode = (data?.domain && isValidDomain(data.domain))
+            ? data.domain as DomainCode
+            : (config?.domain ?? 'general');
+
+        activeMeetingId = getMeetingService().startMeeting(domain);
+        socketMeetings.set(socket.id, activeMeetingId);
+        console.log(`📋 Meeting started [${socket.id}]: ${activeMeetingId}`);
+        socket.emit('meeting:started', { meetingId: activeMeetingId, domain });
+    });
+
+    /** 結束會議（不自動生成摘要，讓前端決定） */
+    socket.on('meeting:end', () => {
+        if (!activeMeetingId) {
+            socket.emit('meeting:error', { message: '沒有進行中的會議' });
+            return;
+        }
+        const record = getMeetingService().endMeeting(activeMeetingId);
+        console.log(`📋 Meeting ended [${socket.id}]: ${activeMeetingId}`);
+        socket.emit('meeting:ended', {
+            meetingId: activeMeetingId,
+            utteranceCount: record?.utterances.length ?? 0,
+        });
+        socketMeetings.delete(socket.id);
+        activeMeetingId = null;
+    });
+
+    /** 生成摘要 */
+    socket.on('meeting:summarize', async (data: { meetingId?: string }) => {
+        const targetId = data?.meetingId ?? activeMeetingId;
+        if (!targetId) {
+            socket.emit('meeting:error', { message: '沒有指定會議 ID' });
+            return;
+        }
+
+        console.log(`📝 Generating summary for ${targetId}...`);
+        socket.emit('meeting:summary_generating', { meetingId: targetId });
+
+        const summary = await getMeetingService().generateSummary(targetId);
+        if (summary) {
+            socket.emit('meeting:summary', { meetingId: targetId, summary });
+        } else {
+            socket.emit('meeting:error', { message: '摘要生成失敗，請確認 GEMINI_API_KEY 已設定' });
+        }
+    });
+
+    /** 取得逐字稿 */
+    socket.on('meeting:transcript', (data: { meetingId?: string }) => {
+        const targetId = data?.meetingId ?? activeMeetingId;
+        if (!targetId) {
+            socket.emit('meeting:error', { message: '沒有指定會議 ID' });
+            return;
+        }
+        const record = getMeetingService().getMeetingTranscript(targetId);
+        socket.emit('meeting:transcript_result', { meetingId: targetId, record });
+    });
+
     // 斷線處理
     socket.on('disconnect', () => {
         console.log(`❌ Client disconnected: ${socket.id}`);
@@ -682,6 +887,7 @@ io.on('connection', (socket) => {
         stopAudioConversionInterval();
         // 清理設定
         socketConfigs.delete(socket.id);
+        socketMeetings.delete(socket.id);
         if (currentTranslationSocket?.id === socket.id) {
             currentTranslationSocket = null;
         }

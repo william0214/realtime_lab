@@ -19,9 +19,10 @@ export interface TranslationEntry {
     targetText: string;
     sourceLang: LangCode;
     targetLang: LangCode;
-    isReverse?: boolean;  // 是否為反向翻譯（病人說話）
+    isReverse?: boolean;  // 是否為反向翻譯
     timestamp: string;
     isParagraphEnd?: boolean; // 是否為段落結束（停頓偵測）
+    confidence?: 'high' | 'medium' | 'low'; // 翻譯信心度
 }
 
 // 累積泡泡條目（用於前端合併顯示）
@@ -38,6 +39,18 @@ export interface AccumulatedEntry {
     timestamp: string;
     isComplete: boolean;  // 是否已完成（偵測到停頓）
     isParagraphEnd?: boolean;  // 是否在段落結束時完成
+    confidence?: 'high' | 'medium' | 'low'; // 翻譯信心度
+}
+
+// 會議摘要型別（對應 server/src/services/meetingService.ts）
+export interface MeetingSummary {
+    summary: string;
+    keyPoints: string[];
+    actionItems: string[];
+    duration: number;
+    utteranceCount: number;
+    domain: string;
+    generatedAt: string;
 }
 
 // Socket 連線狀態
@@ -50,10 +63,17 @@ interface UseSocketReturn {
     translations: TranslationEntry[];
     accumulatedTranslations: AccumulatedEntry[];  // 累積型翻譯（合併顯示用）
     streamingTranslation: TranslationEntry | null;
+    // 會議管理
+    activeMeetingId: string | null;
+    meetingSummary: MeetingSummary | null;
+    isSummarizing: boolean;
+    startMeeting: (domain?: string) => void;
+    endMeeting: () => void;
+    requestSummary: () => void;
     sendMessage: (content: string) => void;
     sendAudioBlob: (blob: Blob) => Promise<void>;
-    sendAudioChunk: (blob: Blob) => Promise<void>;
-    updateConfig: (sourceLang: LangCode, targetLang: LangCode) => void;
+    sendAudioChunk: (blob: Blob, source?: 'mic' | 'system') => Promise<void>;
+    updateConfig: (sourceLang: LangCode, targetLang: LangCode, domain?: string) => void;
     commitAudio: () => void;
     startAudioRecording: () => void;
     stopAudioRecording: () => void;
@@ -74,6 +94,10 @@ export function useSocket(): UseSocketReturn {
     const [translations, setTranslations] = useState<TranslationEntry[]>([]);
     const [accumulatedTranslations, setAccumulatedTranslations] = useState<AccumulatedEntry[]>([]);
     const [streamingTranslation, setStreamingTranslation] = useState<TranslationEntry | null>(null);
+    // 會議狀態
+    const [activeMeetingId, setActiveMeetingId] = useState<string | null>(null);
+    const [meetingSummary, setMeetingSummary] = useState<MeetingSummary | null>(null);
+    const [isSummarizing, setIsSummarizing] = useState(false);
     const socketRef = useRef<Socket | null>(null);
 
     // 追蹤錄音狀態（用於 stopAudioRecording 時標記最後泡泡為完成）
@@ -342,6 +366,7 @@ export function useSocket(): UseSocketReturn {
                         timestamp: entry.timestamp,
                         isComplete: entry.isParagraphEnd || false,  // 如果偵測到段落結束，新泡泡直接標記為完成
                         isParagraphEnd: entry.isParagraphEnd,  // 記錄段落結束信息
+                        confidence: entry.confidence,  // 翻譯信心度
                     };
 
                     console.log('📦 Created new bubble:', entry.id, { isParagraphEnd: entry.isParagraphEnd, isComplete: entry.isParagraphEnd || false });
@@ -363,6 +388,33 @@ export function useSocket(): UseSocketReturn {
             console.log('🌐 Received translation:', entry);
             // 只在沒有使用 partial/final 流程時才處理
             // 現在 translate_final 會同時觸發 translation，所以這裡不重複處理
+        });
+
+        // ---- 會議事件 ----
+        socket.on('meeting:started', (data: { meetingId: string }) => {
+            console.log(`📋 Meeting started: ${data.meetingId}`);
+            setActiveMeetingId(data.meetingId);
+            setMeetingSummary(null);
+        });
+
+        socket.on('meeting:ended', (data: { meetingId: string }) => {
+            console.log(`📋 Meeting ended: ${data.meetingId}`);
+        });
+
+        socket.on('meeting:summary_generating', () => {
+            setIsSummarizing(true);
+        });
+
+        socket.on('meeting:summary', (data: { meetingId: string; summary: MeetingSummary }) => {
+            console.log(`📝 Meeting summary received: ${data.meetingId}`);
+            setMeetingSummary(data.summary);
+            setIsSummarizing(false);
+            setActiveMeetingId(null);
+        });
+
+        socket.on('meeting:error', (data: { message: string }) => {
+            console.error(`❌ Meeting error: ${data.message}`);
+            setIsSummarizing(false);
         });
 
         // 清理函數
@@ -413,7 +465,7 @@ export function useSocket(): UseSocketReturn {
     }, []);
 
     // 發送音訊 chunk (連續錄音用)
-    const sendAudioChunk = useCallback(async (blob: Blob) => {
+    const sendAudioChunk = useCallback(async (blob: Blob, source: 'mic' | 'system' = 'mic') => {
         if (!socketRef.current) {
             console.error('🚨 Socket not connected');
             return;
@@ -421,18 +473,18 @@ export function useSocket(): UseSocketReturn {
 
         try {
             const arrayBuffer = await blob.arrayBuffer();
-            console.log(`🎤 Sending audio chunk: ${arrayBuffer.byteLength} bytes`);
-            socketRef.current.emit('audio:chunk', arrayBuffer);
+            console.log(`🎤 Sending audio chunk: ${arrayBuffer.byteLength} bytes [${source}]`);
+            socketRef.current.emit('audio:chunk', { buffer: arrayBuffer, source });
         } catch (error) {
             console.error('🚨 Failed to send audio chunk:', error);
         }
     }, []);
 
     // 更新語言設定
-    const updateConfig = useCallback((sourceLang: LangCode, targetLang: LangCode) => {
+    const updateConfig = useCallback((sourceLang: LangCode, targetLang: LangCode, domain?: string) => {
         if (socketRef.current) {
-            console.log(`🌐 Updating config: ${sourceLang} -> ${targetLang}`);
-            socketRef.current.emit('config:update', { sourceLang, targetLang });
+            console.log(`🌐 Updating config: ${sourceLang} -> ${targetLang} [${domain || 'general'}]`);
+            socketRef.current.emit('config:update', { sourceLang, targetLang, domain: domain || 'general' });
         }
     }, []);
 
@@ -508,6 +560,21 @@ export function useSocket(): UseSocketReturn {
         isRecordingRef.current = false;  // 重設錄音狀態
     }, []);
 
+    // ---- 會議管理函數 ----
+
+    const startMeeting = useCallback((domain?: string) => {
+        socketRef.current?.emit('meeting:start', { domain });
+    }, []);
+
+    const endMeeting = useCallback(() => {
+        socketRef.current?.emit('meeting:end');
+        setActiveMeetingId(null);
+    }, []);
+
+    const requestSummary = useCallback(() => {
+        socketRef.current?.emit('meeting:summarize', {});
+    }, []);
+
     return {
         socket: socketRef.current,
         status,
@@ -515,6 +582,12 @@ export function useSocket(): UseSocketReturn {
         translations,
         accumulatedTranslations,
         streamingTranslation,
+        activeMeetingId,
+        meetingSummary,
+        isSummarizing,
+        startMeeting,
+        endMeeting,
+        requestSummary,
         sendMessage,
         sendAudioBlob,
         sendAudioChunk,

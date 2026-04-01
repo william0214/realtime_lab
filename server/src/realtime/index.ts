@@ -14,6 +14,7 @@ export interface RealtimeClientFactoryOptions extends IRealtimeClientOptions {
     // Gemini 特有選項
     geminiModel?: string;
     voice?: string;
+    domain?: string;
 }
 
 /**
@@ -30,9 +31,10 @@ export function createRealtimeClient(options: RealtimeClientFactoryOptions): IRe
                 sourceLang,
                 targetLang,
                 autoReconnect,
+                domain: options.domain,
             };
             console.log('🏭 Creating OpenAI Realtime Client');
-            return new OpenAIRealtimeClient(openaiOptions);
+            return new OpenAIRealtimeClient(openaiOptions as any);
         }
 
         case 'gemini': {
@@ -43,6 +45,7 @@ export function createRealtimeClient(options: RealtimeClientFactoryOptions): IRe
                 targetLang,
                 autoReconnect,
                 voice: options.voice,
+                domain: options.domain,
             };
             console.log('🏭 Creating Gemini Realtime Client');
             return new GeminiRealtimeClient(geminiOptions);
