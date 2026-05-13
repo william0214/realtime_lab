@@ -12,6 +12,8 @@ import { getVADService, type VADConfig } from './services/vadService';
 import { type DomainCode, getDomainConfig, getAllDomains, isValidDomain } from './services/domainService';
 import { getVectorStore } from './services/vectorStore';
 import { getMeetingService } from './services/meetingService';
+import { TripleCompareManager } from './realtime/tripleCompare';
+import type { ModelResult, ModelKey } from './realtime/tripleCompare';
 
 // 載入環境變數
 dotenv.config();
@@ -896,6 +898,99 @@ io.on('connection', (socket) => {
             content: `使用者離開: ${socket.id}`,
             timestamp: new Date().toISOString(),
         });
+    });
+});
+
+// ─── 三模型比較 Socket.IO 命名空間 ────────────────────────────────────────────
+const compareNs = io.of('/compare');
+
+compareNs.on('connection', (socket) => {
+    console.log(`[Compare] Client connected: ${socket.id}`);
+
+    let manager: TripleCompareManager | null = null;
+
+    // 初始化三模型比較
+    socket.on('compare:init', async (data: { sourceLang?: string; targetLang?: string }) => {
+        const sourceLang = data.sourceLang ?? 'zh-TW';
+        const targetLang = data.targetLang ?? 'en';
+
+        const apiKey = process.env.OPENAI_API_KEY || '';
+        if (!apiKey) {
+            socket.emit('compare:error', { message: 'OPENAI_API_KEY not configured' });
+            return;
+        }
+
+        if (manager) {
+            await manager.disconnectAll();
+        }
+
+        manager = new TripleCompareManager({
+            apiKey,
+            sourceLang,
+            targetLang,
+            vadThreshold: 0.3,
+            silenceDurationMs: 500,
+        });
+
+        manager.on('model_result', (result: ModelResult) => {
+            socket.emit('compare:result', result);
+        });
+        manager.on('speech_started', (modelKey: ModelKey) => {
+            socket.emit('compare:speech_started', { model: modelKey });
+        });
+        manager.on('speech_stopped', (modelKey: ModelKey) => {
+            socket.emit('compare:speech_stopped', { model: modelKey });
+        });
+        manager.on('model_error', (info: { model: ModelKey; error: string }) => {
+            socket.emit('compare:model_error', info);
+        });
+        manager.on('model_disconnected', (info: { model: ModelKey; code: number; reason: string }) => {
+            socket.emit('compare:model_disconnected', info);
+        });
+
+        try {
+            const { success, failed } = await manager.connectAll();
+            socket.emit('compare:ready', { success, failed, sourceLang, targetLang });
+            console.log(`[Compare] Connected: ${success.join(', ')} | Failed: ${failed.join(', ')}`);
+        } catch (err) {
+            socket.emit('compare:error', { message: String(err) });
+        }
+    });
+
+    // 接收 PCM16 音訊並廣播到三個模型
+    socket.on('compare:audio', (payload: ArrayBuffer | { buffer: ArrayBuffer }) => {
+        if (!manager) return;
+        const buffer = payload instanceof ArrayBuffer
+            ? Buffer.from(payload)
+            : Buffer.from((payload as { buffer: ArrayBuffer }).buffer);
+        manager.broadcastAudio(buffer);
+    });
+
+    // 語音開始（前端 VAD 觸發）
+    socket.on('compare:speech_start', () => {
+        manager?.broadcastSpeechStart();
+    });
+
+    // 更新語言
+    socket.on('compare:update_lang', (data: { sourceLang: string; targetLang: string }) => {
+        if (!manager) return;
+        manager.updateLanguages(data.sourceLang, data.targetLang);
+        socket.emit('compare:lang_updated', data);
+    });
+
+    // 取得狀態
+    socket.on('compare:status', () => {
+        const status = manager?.getStatus() ?? { VOICE_AGENT: false, TRANSLATE: false, WHISPER: false };
+        socket.emit('compare:status_result', status);
+    });
+
+    // 斷線清理
+    socket.on('disconnect', async () => {
+        console.log(`[Compare] Client disconnected: ${socket.id}`);
+        if (manager) {
+            await manager.disconnectAll();
+            manager = null;
+        }
     });
 });
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import CompareView from './components/CompareView';
 import { useSocket, ConnectionStatus, LangCode, AccumulatedEntry } from './hooks/useSocket';
 import { useContinuousRecorder } from './hooks/useContinuousRecorder';
 import './App.css';
@@ -38,6 +39,8 @@ const LANGUAGES: { code: LangCode; label: string }[] = [
 type DisplayEntry = AccumulatedEntry & { _isStreaming?: boolean };
 
 function App() {
+    const [activeTab, setActiveTab] = useState<'translate' | 'compare'>('translate');
+
     const {
         status,
         accumulatedTranslations,
@@ -182,17 +185,36 @@ function App() {
     };
 
     return (
-        <div className="app">
-            <header className="header">
-                <h1>🌐 即時翻譯系統</h1>
-                <div className="status">
-                    <span
-                        className="status-dot"
-                        style={{ backgroundColor: getStatusColor(status) }}
-                    />
-                    <span>{getStatusText(status)}</span>
-                </div>
-            </header>
+        <>
+            {activeTab === 'compare' && <CompareView />}
+            {activeTab !== 'compare' && (
+            <div className="app">
+                <header className="header">
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%'}}>
+                        <h1 style={{margin:0}}>🌐 即時翻譯系統</h1>
+                        <div style={{display:'flex',gap:'8px'}}>
+                            <button
+                                onClick={() => setActiveTab('translate')}
+                                style={{padding:'6px 14px',borderRadius:'4px',border:'none',cursor:'pointer',
+                                       background: activeTab==='translate' ? '#6366f1' : '#374151',
+                                       color: 'white',fontWeight:600,fontSize:'13px'}}
+                            >翻譯模式</button>
+                            <button
+                                onClick={() => setActiveTab('compare')}
+                                style={{padding:'6px 14px',borderRadius:'4px',border:'none',cursor:'pointer',
+                                       background: (activeTab as string)==='compare' ? '#6366f1' : '#374151',
+                                       color: 'white',fontWeight:600,fontSize:'13px'}}
+                            >⚡ 三模型比較</button>
+                        </div>
+                    </div>
+                    <div className="status">
+                        <span
+                            className="status-dot"
+                            style={{ backgroundColor: getStatusColor(status) }}
+                        />
+                        <span>{getStatusText(status)}</span>
+                    </div>
+                </header>
 
             {/* 領域 + 語言選擇列 */}
             <div className="lang-bar">
@@ -349,7 +371,8 @@ function App() {
                 )}
             </main>
         </div>
+            )}
+        </>
     );
 }
-
 export default App;
