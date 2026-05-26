@@ -12,7 +12,9 @@
         "benchmark:all": "npx tsx benchmark/runner.ts --providers=openai-whisper-batch,openai-realtime-whisper,openai-translate,gladia,deepgram",
         "benchmark:dry": "npx tsx benchmark/runner.ts --dry-run",
         "benchmark:zh-en": "npx tsx benchmark/runner.ts --source=zh --target=en --lang=zh",
-        "benchmark:en-zh": "npx tsx benchmark/runner.ts --source=en --target=zh --lang=en"
+        "benchmark:en-zh": "npx tsx benchmark/runner.ts --source=en --target=zh --lang=en",
+        "benchmark:gemini": "npx tsx benchmark/runner.ts --providers=gemini-live --verbose",
+        "benchmark:gemini-vs-openai": "npx tsx benchmark/runner.ts --providers=openai-whisper-batch,openai-realtime-whisper,gemini-live"
     },
     "dependencies": {
         "axios": "^1.7.0",

@@ -9,7 +9,8 @@ export type ProviderName =
   | "openai-whisper-batch" // gpt-4o-transcribe (現有系統 baseline)
   | "gladia"               // Gladia Solaria-1
   | "deepgram"             // Deepgram Nova-3
-  | "soniox";              // Soniox
+  | "soniox"              // Soniox
+  | "gemini-live";         // Gemini 3.1 Flash Live (Google)
 
 export interface TestSentence {
   id: string;

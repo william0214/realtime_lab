@@ -36,6 +36,7 @@ import { runOpenAIRealtimeWhisper } from "./runners/openai-realtime-whisper";
 import { runOpenAIRealtimeTranslate } from "./runners/openai-realtime-translate";
 import { runGladia } from "./runners/gladia";
 import { runDeeepgram } from "./runners/deepgram";
+import { runGeminiLive } from "./runners/gemini-live";
 
 // ============================================================
 // CLI 參數解析
@@ -55,6 +56,7 @@ const ALL_PROVIDERS: ProviderName[] = [
   "openai-translate",
   "gladia",
   "deepgram",
+  "gemini-live",
 ];
 
 const providersArg = getArg("providers", "");
@@ -88,6 +90,7 @@ const API_KEYS: Partial<Record<ProviderName, string>> = {
   gladia: process.env.GLADIA_API_KEY,
   deepgram: process.env.DEEPGRAM_API_KEY,
   soniox: process.env.SONIOX_API_KEY,
+  "gemini-live": process.env.GEMINI_API_KEY,
 };
 
 // ============================================================
@@ -130,6 +133,7 @@ async function runProvider(
     gladia: "Gladia Solaria-1",
     deepgram: "Deepgram Nova-3",
     soniox: "Soniox",
+    "gemini-live": "Gemini 3.1 Flash Live",
   };
 
   if (!apiKey) {
@@ -201,6 +205,9 @@ async function runProvider(
           break;
         case "deepgram":
           result = await runDeeepgram(sentence, audioPath, apiKey, config.targetLang, config.timeoutMs);
+          break;
+        case "gemini-live":
+          result = await runGeminiLive(sentence, audioPath, config.sourceLang, config.targetLang, apiKey, config.timeoutMs, config.verbose);
           break;
         default:
           result = {

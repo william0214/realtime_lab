@@ -19,6 +19,7 @@ const PROVIDER_LABELS: Record<ProviderName, string> = {
   gladia: "Gladia Solaria-1",
   deepgram: "Deepgram Nova-3",
   soniox: "Soniox",
+  "gemini-live": "Gemini 3.1 Flash Live",
 };
 
 function avg(nums: number[]): number {
