@@ -1,0 +1,809 @@
+{
+  "version": "1.0",
+  "generatedAt": "2026-05-26T23:33:50.785Z",
+  "config": {
+    "providers": [
+      "openai-whisper-batch",
+      "deepgram",
+      "gladia"
+    ],
+    "sourceLang": "zh",
+    "targetLang": "en",
+    "audioDir": "/home/ubuntu/realtime_lab/tools/audio",
+    "outputDir": "/home/ubuntu/realtime_lab/tools/benchmark-results",
+    "timeoutMs": 30000,
+    "repeatCount": 1,
+    "verbose": false
+  },
+  "results": [
+    {
+      "provider": "openai-whisper-batch",
+      "providerLabel": "OpenAI Whisper Batch (Baseline)",
+      "startedAt": "2026-05-26T23:31:38.345Z",
+      "finishedAt": "2026-05-26T23:31:59.039Z",
+      "totalDurationMs": 20694,
+      "sentences": [
+        {
+          "sentenceId": "zh-01",
+          "lang": "zh",
+          "expectedText": "請問您今天哪裡不舒服？",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 1157,
+              "translationMs": 2226,
+              "transcribedText": "請問您今天哪裡不舒服?",
+              "translatedText": "Where do you feel unwell today?",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 1157,
+          "avgTranslationMs": 2226,
+          "cer": 0,
+          "translationScore": 80,
+          "tradChineseRatio": 100,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-02",
+          "lang": "zh",
+          "expectedText": "我頭痛已經三天了，而且有點發燒。",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 1074,
+              "translationMs": 1953,
+              "transcribedText": "我頭痛已經三天了，而且有點發燒。",
+              "translatedText": "I have had a headache for three days, and I have a bit of a fever.",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 1074,
+          "avgTranslationMs": 1953,
+          "cer": 0,
+          "translationScore": 80,
+          "tradChineseRatio": 100,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-03",
+          "lang": "zh",
+          "expectedText": "請問您對什麼藥物過敏嗎？",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 857,
+              "translationMs": 2273,
+              "transcribedText": "請問您對什麼藥物過敏嗎?",
+              "translatedText": "Are you allergic to any medications?",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 857,
+          "avgTranslationMs": 2273,
+          "cer": 0,
+          "translationScore": 80,
+          "tradChineseRatio": 100,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-04",
+          "lang": "zh",
+          "expectedText": "我對青黴素過敏，吃了會起疹子。",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 1207,
+              "translationMs": 2588,
+              "transcribedText": "我對青黴素過敏，吃了會起疹子。",
+              "translatedText": "I am allergic to penicillin, and if I take it, I will develop a rash.",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 1207,
+          "avgTranslationMs": 2588,
+          "cer": 0,
+          "translationScore": 80,
+          "tradChineseRatio": 100,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-05",
+          "lang": "zh",
+          "expectedText": "這個藥一天吃三次，每次一顆，飯後服用。",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 1058,
+              "translationMs": 2157,
+              "transcribedText": "這個藥一天吃三次，每次一顆，飯後服用。",
+              "translatedText": "This medication should be taken three times a day, one tablet at a time, after meals.",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 1058,
+          "avgTranslationMs": 2157,
+          "cer": 0,
+          "translationScore": 80,
+          "tradChineseRatio": 100,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-06",
+          "lang": "zh",
+          "expectedText": "請問掛號要怎麼辦理？",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 846,
+              "translationMs": 1708,
+              "transcribedText": "請問掛號要怎麼辦理?",
+              "translatedText": "How do I make an appointment?",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 846,
+          "avgTranslationMs": 1708,
+          "cer": 0,
+          "translationScore": 80,
+          "tradChineseRatio": 100,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-07",
+          "lang": "zh",
+          "expectedText": "您需要先到一樓服務台抽號碼牌。",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 858,
+              "translationMs": 1802,
+              "transcribedText": "您需要先到一樓服務台抽號碼牌。",
+              "translatedText": "You need to go to the service desk on the first floor to draw a number.",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 858,
+          "avgTranslationMs": 1802,
+          "cer": 0,
+          "translationScore": 80,
+          "tradChineseRatio": 100,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-08",
+          "lang": "zh",
+          "expectedText": "我的肚子很痛，痛了一整個晚上。",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 949,
+              "translationMs": 1751,
+              "transcribedText": "我的肚子很痛，痛了一整個晚上。",
+              "translatedText": "My stomach hurts a lot, and it has been painful all night long.",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 949,
+          "avgTranslationMs": 1751,
+          "cer": 0,
+          "translationScore": 80,
+          "tradChineseRatio": 100,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-09",
+          "lang": "zh",
+          "expectedText": "請您先做一個血液檢查，報告大概兩個小時後出來。",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 989,
+              "translationMs": 2050,
+              "transcribedText": "請您先做一個血液檢查，報告大概兩個小時後出來。",
+              "translatedText": "Please have a blood test done first; the report will come out in about two hours.",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 989,
+          "avgTranslationMs": 2050,
+          "cer": 0,
+          "translationScore": 80,
+          "tradChineseRatio": 100,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-10",
+          "lang": "zh",
+          "expectedText": "謝謝醫生，請問下次什麼時候回診？",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 1144,
+              "translationMs": 2178,
+              "transcribedText": "謝謝醫生，請問下次什麼時候回診?",
+              "translatedText": "Thank you, doctor. When should I come back for my next appointment?",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 1144,
+          "avgTranslationMs": 2178,
+          "cer": 0,
+          "translationScore": 80,
+          "tradChineseRatio": 100,
+          "successRate": 100
+        }
+      ],
+      "summary": {
+        "avgFirstPartialMs": 0,
+        "avgFinalMs": 1013.9,
+        "avgTranslationMs": 2068.6,
+        "avgCer": 0,
+        "avgTranslationScore": 80,
+        "avgTradChineseRatio": 100,
+        "successRate": 100,
+        "totalSentences": 10,
+        "successCount": 10,
+        "failCount": 0,
+        "byLang": {
+          "zh": {
+            "successRate": 100,
+            "avgCer": 0,
+            "avgFinalMs": 1013.9
+          }
+        }
+      },
+      "apiKeyAvailable": true,
+      "skipped": false
+    },
+    {
+      "provider": "deepgram",
+      "providerLabel": "Deepgram Nova-3",
+      "startedAt": "2026-05-26T23:32:00.040Z",
+      "finishedAt": "2026-05-26T23:32:47.480Z",
+      "totalDurationMs": 47440,
+      "sentences": [
+        {
+          "sentenceId": "zh-01",
+          "lang": "zh",
+          "expectedText": "請問您今天哪裡不舒服？",
+          "runs": [
+            {
+              "firstPartialMs": 2627,
+              "finalTranscriptMs": 3654,
+              "translationMs": null,
+              "transcribedText": "請問您今天哪裡不舒服",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 2627,
+          "avgFinalMs": 3654,
+          "avgTranslationMs": 0,
+          "cer": 0,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-02",
+          "lang": "zh",
+          "expectedText": "我頭痛已經三天了，而且有點發燒。",
+          "runs": [
+            {
+              "firstPartialMs": 2153,
+              "finalTranscriptMs": 3779,
+              "translationMs": null,
+              "transcribedText": "我頭痛已經三天了而且有點發燒",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 2153,
+          "avgFinalMs": 3779,
+          "avgTranslationMs": 0,
+          "cer": 0,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-03",
+          "lang": "zh",
+          "expectedText": "請問您對什麼藥物過敏嗎？",
+          "runs": [
+            {
+              "firstPartialMs": 1012,
+              "finalTranscriptMs": 1330,
+              "translationMs": null,
+              "transcribedText": "請問您對什麼藥物過敏嗎?",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 1012,
+          "avgFinalMs": 1330,
+          "avgTranslationMs": 0,
+          "cer": 0,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-04",
+          "lang": "zh",
+          "expectedText": "我對青黴素過敏，吃了會起疹子。",
+          "runs": [
+            {
+              "firstPartialMs": 756,
+              "finalTranscriptMs": 2122,
+              "translationMs": null,
+              "transcribedText": "我對青黴素過敏吃了會起疹子",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 756,
+          "avgFinalMs": 2122,
+          "avgTranslationMs": 0,
+          "cer": 0,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-05",
+          "lang": "zh",
+          "expectedText": "這個藥一天吃三次，每次一顆，飯後服用。",
+          "runs": [
+            {
+              "firstPartialMs": 1246,
+              "finalTranscriptMs": 3032,
+              "translationMs": null,
+              "transcribedText": "這個藥一天吃三次每次一顆飯後服用",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 1246,
+          "avgFinalMs": 3032,
+          "avgTranslationMs": 0,
+          "cer": 0,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-06",
+          "lang": "zh",
+          "expectedText": "請問掛號要怎麼辦理？",
+          "runs": [
+            {
+              "firstPartialMs": 763,
+              "finalTranscriptMs": 1320,
+              "translationMs": null,
+              "transcribedText": "請問掛號要怎麼辦理",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 763,
+          "avgFinalMs": 1320,
+          "avgTranslationMs": 0,
+          "cer": 0,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-07",
+          "lang": "zh",
+          "expectedText": "您需要先到一樓服務台抽號碼牌。",
+          "runs": [
+            {
+              "firstPartialMs": 734,
+              "finalTranscriptMs": 1874,
+              "translationMs": null,
+              "transcribedText": "您需要閒到一樓服務檯抽號碼牌",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 734,
+          "avgFinalMs": 1874,
+          "avgTranslationMs": 0,
+          "cer": 14.285714285714278,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-08",
+          "lang": "zh",
+          "expectedText": "我的肚子很痛，痛了一整個晚上。",
+          "runs": [
+            {
+              "firstPartialMs": 676,
+              "finalTranscriptMs": 1822,
+              "translationMs": null,
+              "transcribedText": "我的肚子很痛痛了一整個晚上",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 676,
+          "avgFinalMs": 1822,
+          "avgTranslationMs": 0,
+          "cer": 0,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-09",
+          "lang": "zh",
+          "expectedText": "請您先做一個血液檢查，報告大概兩個小時後出來。",
+          "runs": [
+            {
+              "firstPartialMs": 766,
+              "finalTranscriptMs": 3434,
+              "translationMs": null,
+              "transcribedText": "請您先做一個血液檢查報告大概兩個小時後出來",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 766,
+          "avgFinalMs": 3434,
+          "avgTranslationMs": 0,
+          "cer": 0,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-10",
+          "lang": "zh",
+          "expectedText": "謝謝醫生，請問下次什麼時候回診？",
+          "runs": [
+            {
+              "firstPartialMs": 702,
+              "finalTranscriptMs": 1876,
+              "translationMs": null,
+              "transcribedText": "謝謝醫生請問下次什麼時候回診",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 702,
+          "avgFinalMs": 1876,
+          "avgTranslationMs": 0,
+          "cer": 0,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        }
+      ],
+      "summary": {
+        "avgFirstPartialMs": 1143.5,
+        "avgFinalMs": 2424.3,
+        "avgTranslationMs": 0,
+        "avgCer": 14.285714285714278,
+        "avgTranslationScore": 0,
+        "avgTradChineseRatio": 0,
+        "successRate": 100,
+        "totalSentences": 10,
+        "successCount": 10,
+        "failCount": 0,
+        "byLang": {
+          "zh": {
+            "successRate": 100,
+            "avgCer": 14.285714285714278,
+            "avgFinalMs": 2424.3
+          }
+        }
+      },
+      "apiKeyAvailable": true,
+      "skipped": false
+    },
+    {
+      "provider": "gladia",
+      "providerLabel": "Gladia Solaria-1",
+      "startedAt": "2026-05-26T23:32:48.481Z",
+      "finishedAt": "2026-05-26T23:33:49.784Z",
+      "totalDurationMs": 61303,
+      "sentences": [
+        {
+          "sentenceId": "zh-01",
+          "lang": "zh",
+          "expectedText": "請問您今天哪裡不舒服？",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 1535,
+              "translationMs": null,
+              "transcribedText": "请问您今天哪里不舒服?",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 1535,
+          "avgTranslationMs": 0,
+          "cer": 30,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-02",
+          "lang": "zh",
+          "expectedText": "我頭痛已經三天了，而且有點發燒。",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 1985,
+              "translationMs": null,
+              "transcribedText": "我头痛已经三天了,而且有点发烧。",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 1985,
+          "avgTranslationMs": 0,
+          "cer": 35.71428571428572,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-03",
+          "lang": "zh",
+          "expectedText": "請問您對什麼藥物過敏嗎？",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 2032,
+              "translationMs": null,
+              "transcribedText": "请问您对什么药物过敏吗?",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 2032,
+          "avgTranslationMs": 0,
+          "cer": 63.63636363636363,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-04",
+          "lang": "zh",
+          "expectedText": "我對青黴素過敏，吃了會起疹子。",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 1604,
+              "translationMs": null,
+              "transcribedText": "我对青梅树过敏,吃了会起疹子。",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 1604,
+          "avgTranslationMs": 0,
+          "cer": 38.46153846153847,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-05",
+          "lang": "zh",
+          "expectedText": "這個藥一天吃三次，每次一顆，飯後服用。",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 2123,
+              "translationMs": null,
+              "transcribedText": "这个药一天吃三次每吃一颗饭后服用",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 2123,
+          "avgTranslationMs": 0,
+          "cer": 43.75,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-06",
+          "lang": "zh",
+          "expectedText": "請問掛號要怎麼辦理？",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 1328,
+              "translationMs": null,
+              "transcribedText": "请问挂号要怎么办理?",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 1328,
+          "avgTranslationMs": 0,
+          "cer": 66.66666666666666,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-07",
+          "lang": "zh",
+          "expectedText": "您需要先到一樓服務台抽號碼牌。",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 1447,
+              "translationMs": null,
+              "transcribedText": "您需要先到一楼服务台抽号码牌。",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 1447,
+          "avgTranslationMs": 0,
+          "cer": 28.57142857142857,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-08",
+          "lang": "zh",
+          "expectedText": "我的肚子很痛，痛了一整個晚上。",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 1968,
+              "translationMs": null,
+              "transcribedText": "我的肚子很痛,痛了一整个晚上。",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 1968,
+          "avgTranslationMs": 0,
+          "cer": 7.692307692307693,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-09",
+          "lang": "zh",
+          "expectedText": "請您先做一個血液檢查，報告大概兩個小時後出來。",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 2119,
+              "translationMs": null,
+              "transcribedText": "请您先做一个血液检查,报告大概两个小时后出来。",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 2119,
+          "avgTranslationMs": 0,
+          "cer": 42.857142857142854,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        },
+        {
+          "sentenceId": "zh-10",
+          "lang": "zh",
+          "expectedText": "謝謝醫生，請問下次什麼時候回診？",
+          "runs": [
+            {
+              "firstPartialMs": null,
+              "finalTranscriptMs": 1764,
+              "translationMs": null,
+              "transcribedText": "谢谢医生,请问下次什么时候回诊?",
+              "translatedText": "",
+              "success": true
+            }
+          ],
+          "avgFirstPartialMs": 0,
+          "avgFinalMs": 1764,
+          "avgTranslationMs": 0,
+          "cer": 57.14285714285714,
+          "translationScore": 0,
+          "tradChineseRatio": 0,
+          "successRate": 100
+        }
+      ],
+      "summary": {
+        "avgFirstPartialMs": 0,
+        "avgFinalMs": 1790.5,
+        "avgTranslationMs": 0,
+        "avgCer": 41.44925907425907,
+        "avgTranslationScore": 0,
+        "avgTradChineseRatio": 0,
+        "successRate": 100,
+        "totalSentences": 10,
+        "successCount": 10,
+        "failCount": 0,
+        "byLang": {
+          "zh": {
+            "successRate": 100,
+            "avgCer": 41.44925907425907,
+            "avgFinalMs": 1790.5
+          }
+        }
+      },
+      "apiKeyAvailable": true,
+      "skipped": false
+    }
+  ],
+  "comparison": {
+    "rankByFirstPartial": [
+      "deepgram",
+      "openai-whisper-batch",
+      "gladia"
+    ],
+    "rankByFinalLatency": [
+      "openai-whisper-batch",
+      "gladia",
+      "deepgram"
+    ],
+    "rankByCer": [
+      "openai-whisper-batch",
+      "deepgram",
+      "gladia"
+    ],
+    "rankByTranslationScore": [
+      "openai-whisper-batch",
+      "deepgram",
+      "gladia"
+    ],
+    "rankByTradChinese": [
+      "openai-whisper-batch",
+      "deepgram",
+      "gladia"
+    ],
+    "rankBySuccessRate": [
+      "openai-whisper-batch",
+      "deepgram",
+      "gladia"
+    ],
+    "nursingRecommendation": {
+      "bestForLatency": "openai-whisper-batch",
+      "bestForAccuracy": "openai-whisper-batch",
+      "bestForTradChinese": "openai-whisper-batch",
+      "bestOverall": "openai-whisper-batch",
+      "notes": "綜合評分權重：延遲 30% + 準確度 40% + 繁體中文 30%\n最佳延遲：OpenAI Whisper Batch (Baseline)\n最佳準確度：OpenAI Whisper Batch (Baseline)\n最佳繁體中文：OpenAI Whisper Batch (Baseline)\n護理場景綜合最佳：OpenAI Whisper Batch (Baseline)"
+    }
+  }
+}

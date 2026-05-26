@@ -2,6 +2,9 @@
  * Runner: gladia
  * 使用 Gladia Solaria-1 即時 ASR + 翻譯
  * API: https://api.gladia.io/v2/live
+ * 
+ * 注意：/v2/live 端點只接受音訊格式參數
+ * 語言設定與翻譯設定需透過 WebSocket 的 configuration 事件傳送
  */
 import * as fs from "fs";
 import WebSocket from "ws";
@@ -53,7 +56,7 @@ export async function runGladia(
   }
 
   try {
-    // Step 1: 建立 live session
+    // Step 1: 建立 live session（只傳音訊格式，不傳語言/翻譯設定）
     const sessionResp = await axios.post(
       `${GLADIA_API_URL}/v2/live`,
       {
@@ -61,32 +64,17 @@ export async function runGladia(
         sample_rate: 16000,
         bit_depth: 16,
         channels: 1,
-        language_config: {
-          languages: [sentence.lang === "zh" ? "zh" : sentence.lang],
-          code_switching: false,
-        },
-        translation_config: {
-          target_languages: [
-            targetLang === "zh" || targetLang === "zh-TW" ? "zh" : targetLang,
-          ],
-        },
-        realtime_processing: {
-          words_accurate_timestamps: false,
-          custom_vocabulary: sentence.lang === "zh"
-            ? ["護士", "醫生", "病患", "藥物", "過敏", "手術"]
-            : [],
-        },
       },
       {
         headers: {
-          "X-Gladia-Key": apiKey,
+          "x-gladia-key": apiKey,
           "Content-Type": "application/json",
         },
         timeout: 10000,
       }
     );
 
-    const { id: sessionId, url: wsUrl } = sessionResp.data;
+    const { url: wsUrl } = sessionResp.data;
 
     return new Promise((resolve) => {
       const ws = new WebSocket(wsUrl);
@@ -117,10 +105,30 @@ export async function runGladia(
 
       ws.on("open", async () => {
         try {
+          // Step 2: 透過 WebSocket 傳送語言與翻譯設定
+          const sourceLang = sentence.lang === "zh" ? "zh" : sentence.lang;
+          const destLang = targetLang === "zh" || targetLang === "zh-TW" ? "zh" : targetLang;
+
+          ws.send(JSON.stringify({
+            type: "configuration",
+            data: {
+              language_config: {
+                languages: [sourceLang],
+                code_switching: false,
+              },
+              translation_config: {
+                target_languages: [destLang],
+              },
+            },
+          }));
+
+          // 等待設定生效
+          await new Promise((r) => setTimeout(r, 200));
+
+          // Step 3: 讀取並串流音訊
           const pcmBuffer = await mp3ToPcm16(audioPath, 16000);
           audioSentTime = Date.now();
 
-          // Gladia 接受原始 PCM binary
           const chunkSize = 3200; // 100ms @ 16kHz
           for (let i = 0; i < pcmBuffer.length; i += chunkSize) {
             const chunk = pcmBuffer.slice(i, i + chunkSize);
@@ -205,7 +213,7 @@ export async function runGladia(
             }
           }
         } catch {
-          // 忽略
+          // 忽略 JSON parse 錯誤
         }
       });
 
