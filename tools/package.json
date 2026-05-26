@@ -1,18 +1,28 @@
 {
     "name": "realtime-lab-tools",
     "version": "1.0.0",
-    "description": "TTS 測試工具 - 產生測試語音檔案",
+    "description": "Realtime API 自動化測試工具 - TTS 產生器 + 多 Provider 基準測試",
     "type": "module",
     "scripts": {
         "generate": "npx tsx tts-generator.ts",
         "generate:hd": "npx tsx tts-generator.ts --hd",
-        "serve": "npx serve -p 3001"
+        "serve": "npx serve -p 3001",
+        "benchmark": "npx tsx benchmark/runner.ts",
+        "benchmark:openai": "npx tsx benchmark/runner.ts --providers=openai-whisper-batch,openai-realtime-whisper,openai-translate",
+        "benchmark:all": "npx tsx benchmark/runner.ts --providers=openai-whisper-batch,openai-realtime-whisper,openai-translate,gladia,deepgram",
+        "benchmark:dry": "npx tsx benchmark/runner.ts --dry-run",
+        "benchmark:zh-en": "npx tsx benchmark/runner.ts --source=zh --target=en --lang=zh",
+        "benchmark:en-zh": "npx tsx benchmark/runner.ts --source=en --target=zh --lang=en"
     },
     "dependencies": {
-        "openai": "^4.104.0"
+        "axios": "^1.7.0",
+        "dotenv": "^16.4.0",
+        "openai": "^4.104.0",
+        "ws": "^8.18.0"
     },
     "devDependencies": {
         "@types/node": "^20.10.0",
+        "@types/ws": "^8.5.0",
         "serve": "^14.2.0",
         "tsx": "^4.7.0",
         "typescript": "^5.3.0"
