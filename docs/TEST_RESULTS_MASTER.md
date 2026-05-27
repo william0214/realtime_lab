@@ -1,7 +1,7 @@
 # 語音翻譯系統 — 完整測試結果總覽
 
-**文件版本**：v1.0  
-**最後更新**：2026-05-27（Gemini 3.1 Flash Live benchmark 完成）  
+**文件版本**：v1.1  
+**最後更新**：2026-05-27（Gemini 串流 vs 離線對照測試完成）  
 **測試環境**：新加坡沙箱（sandbox）→ `api.openai.com`  
 **專案**：護理推車即時雙向翻譯系統（realtime-translation）  
 **測試平台**：[william0214/realtime_lab](https://github.com/william0214/realtime_lab)
@@ -16,6 +16,7 @@
 |---|---|---|
 | [Provider Benchmark](#二provider-benchmark-測試) | 5 個 ASR Provider 的延遲與準確度比較 | ✅ 完成 |
 | [Gemini 3.1 Flash Live Benchmark](#二b-gemini-31-flash-live-benchmark) | Gemini 3.1 Flash Live 完整 10 句測試 | ✅ 完成 |
+| [Gemini 串流 vs 離線對照測試](#二c-gemini-串流-vs-離線對照測試) | PCM16 串流 + VAD 端點偵測效果驗證 | ✅ 完成 |
 | [延遲分解分析](#三延遲分解分析) | gpt-realtime-whisper 各環節耗時 | ✅ 完成 |
 | [Realtime vs Batch 比較](#四realtime-vs-batch-延遲比較) | gpt-realtime-whisper vs gpt-4o-transcribe | ✅ 完成 |
 | [簡繁轉換效能比較](#五簡繁轉換效能比較) | opencc-js vs zhconv | ✅ 完成 |
@@ -135,6 +136,86 @@
 - **延遲**：比 gpt-realtime-whisper 慢 5-8 倍，不適合即時字幕場景
 - **ASR**：輸出簡體中文，需後處理轉換；zh-04 出現 27 秒異常延遲（偶發）
 - **建議**：不建議取代現有方案 A，可作為備援翻譯管道
+
+---
+
+## 二C、Gemini 串流 vs 離線對照測試
+
+**測試日期**：2026-05-27  
+**測試腳本**：`tools/test-streaming-vs-offline.ts`  
+**目的**：驗證 PCM16 串流輸入（邊說邊傳 + VAD 端點偵測）是否能縮短 Gemini 3.1 Flash Live 的首字延遲  
+**串流 runner**：`tools/benchmark/runners/gemini-live-streaming.ts`
+
+### 2C.1 測試設計
+
+| 項目 | 離線模式（gemini-live.ts） | 串流模式（gemini-live-streaming.ts） |
+|---|---|---|
+| **音訊傳輸方式** | 全部轉換完後一次性送入 | 每 100ms 一塊，模擬即時錄音 |
+| **VAD** | 無（固定 activityEnd） | RMS 能量閾值 0.015，靜音 300ms 觸發 |
+| **計時起點** | WebSocket 建立時（含 setup） | 第一個音訊塊送出時（不含 setup） |
+| **activityEnd 觸發** | 音訊全部送完後 50ms | VAD 偵測靜音 300ms 後 |
+
+> **計時差異說明**：串流模式的 `startTime` 從「第一個音訊塊送出」開始計算，模擬真實產品中連線已預建的情況。離線模式從 WebSocket 建立開始計算，包含 ~150ms 的 setup 時間。
+
+### 2C.2 逐句對照結果（5 句）
+
+| 句子 | 離線 Final | 串流 Final | 改善 | 離線翻譯 | 串流翻譯 |
+|---|---|---|---|---|---|
+| zh-01（2.02s） | 1,853ms | 2,777ms | ↑924ms | Where are you feeling unwell today? | Where are you experiencing discomfort today? |
+| zh-02（2.95s） | 2,231ms | 3,924ms | ↑1,693ms | I've had a headache for three days and a slight fever. | I've had a headache for three days and a slight fever. |
+| zh-03（1.97s） | 2,323ms | 3,116ms | ↑793ms | Are you allergic to any medications? | Are you allergic to any medications? |
+| zh-06（1.97s） | 1,750ms | 2,344ms | ↑594ms | How do I register? | How do I register, please? |
+| zh-08（2.69s） | 2,070ms | 1,991ms | ↓79ms | I have severe abdominal pain; it has lasted all night. | My stomach hurts badly. |
+| **平均** | **2,045ms** | **2,830ms** | **↑785ms（離線更快）** | — | — |
+
+### 2C.3 根本原因分析：為何串流模式反而更慢？
+
+這個結果與預期相反，原因是 **Gemini 3.1 Flash Live 的 ASR 是整句式（sentence-level）而非增量式（incremental）**：
+
+```
+離線模式時間軸（zh-01）：
+T=0ms   WebSocket 建立
+T=241ms activityStart
+T=295ms activityEnd（音訊全部送完）
+T=1,254ms inputTranscription（ASR 完成，耗時 959ms）
+T=1,853ms outputTranscription（翻譯完成）
+
+串流模式時間軸（zh-01）：
+T=0ms   第一個音訊塊送出
+T=2,115ms activityEnd（VAD 靜音觸發）
+T=2,336ms inputTranscription（ASR 完成，耗時 221ms）
+T=2,777ms outputTranscription（翻譯完成）
+```
+
+**關鍵發現**：
+
+| 項目 | 離線模式 | 串流模式 | 說明 |
+|---|---|---|---|
+| **activityEnd 時間** | T=295ms | T=2,115ms | 串流等到音訊說完才送 activityEnd |
+| **ASR 推理時間** | 959ms | 221ms | 串流 ASR 更快（已有完整音訊） |
+| **總延遲** | 1,853ms | 2,777ms | 串流因 activityEnd 延遲而整體更慢 |
+
+**根本原因**：Gemini 的 ASR 在收到 `activityEnd` 後才開始推理（不是邊接收邊 ASR），所以串流傳輸的時間（~2,000ms）完全加到了延遲上，抵消了 ASR 更快的優勢。
+
+### 2C.4 zh-08 串流更快的例外分析
+
+zh-08（2.69s）是唯一串流更快的句子（快 79ms）。原因：
+- VAD 在 T=1,308ms 就偵測到靜音（音訊後半段是靜音），提早送出 activityEnd
+- 離線模式等到音訊全部送完（2,690ms + 50ms），比 VAD 提早 1,382ms 送 activityEnd
+- 但 VAD 截斷了後半句（「痛了一整個晚上」），翻譯輸出只有「My stomach hurts badly」，丟失了後半句
+
+**這揭示了 VAD 截斷問題**：靜音閾值 300ms 對於說話中間有停頓的句子太短，會截斷翻譯。
+
+### 2C.5 結論與建議
+
+| 結論 | 說明 |
+|---|---|
+| **串流模式不適用於 Gemini Live** | Gemini ASR 是整句式，不支援增量 ASR，串流傳輸的時間直接加到延遲 |
+| **離線模式是最佳選擇** | 一次性送入全部音訊 + 立即 activityEnd，讓 Gemini 盡快開始 ASR |
+| **VAD 截斷問題** | 靜音閾值 300ms 太短，需調高至 ≥500ms 才能避免截斷 |
+| **真正的優化方向** | 預建 WebSocket 連線（節省 ~150ms setup），而非串流傳輸 |
+
+> **對比 OpenAI Realtime API**：OpenAI 支援增量 ASR（邊接收邊處理），串流輸入可節省延遲。Gemini 3.1 Flash Live 目前不支援此特性，串流輸入反而增加延遲。
 
 ---
 
