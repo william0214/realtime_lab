@@ -14,6 +14,7 @@ import { getVectorStore } from './services/vectorStore';
 import { getMeetingService } from './services/meetingService';
 import { TripleCompareManager } from './realtime/tripleCompare';
 import type { ModelResult, ModelKey } from './realtime/tripleCompare';
+import { getEphemeralToken, RealtimeWhisperManager } from './services/realtimeWhisperProxy';
 
 // 載入環境變數
 dotenv.config();
@@ -236,6 +237,24 @@ app.get('/api/provider', (req, res) => {
         connected: realtimeClient.isConnected,
         languages: realtimeClient.getLanguages(),
     });
+});
+
+// ─── Ephemeral Token API（供前端 WebRTC 直連 gpt-realtime-whisper 使用）────────
+app.post('/api/rtw/ephemeral-token', async (req, res) => {
+    const apiKey = process.env.OPENAI_API_KEY || '';
+    if (!apiKey) {
+        res.status(500).json({ error: 'OPENAI_API_KEY not configured' });
+        return;
+    }
+    const language = (req.body?.language as string) || 'zh';
+    try {
+        const result = await getEphemeralToken(apiKey, language);
+        res.json(result);
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[RTW] Ephemeral token error:', msg);
+        res.status(500).json({ error: msg });
+    }
 });
 
 // 取得所有支援的專業領域
@@ -898,6 +917,94 @@ io.on('connection', (socket) => {
             content: `使用者離開: ${socket.id}`,
             timestamp: new Date().toISOString(),
         });
+    });
+});
+
+// ─── RTW（gpt-realtime-whisper）Socket.IO 命名空間 ─────────────────────────────
+// 方案 A 混合策略：後端 WebSocket 代理模式
+// 前端透過 Socket.IO 傳送 PCM16 音訊，後端轉發至 OpenAI gpt-realtime-whisper
+// 收到 transcript.delta → 轉發 'rtw:delta' 給前端
+// 收到 speech_stopped → 轉發 'rtw:speech_stopped'，前端觸發 Final ASR
+const rtwManager = new RealtimeWhisperManager(process.env.OPENAI_API_KEY || '');
+
+const rtwNs = io.of('/rtw');
+rtwNs.on('connection', (socket) => {
+    console.log(`[RTW] Client connected: ${socket.id}`);
+    let rtwLanguage = 'zh';
+    let accumulatedDelta = ''; // 累積 delta 供 Final ASR 使用
+
+    // 初始化 RTW Session
+    socket.on('rtw:init', async (data: { language?: string }) => {
+        rtwLanguage = data?.language || 'zh';
+        const apiKey = process.env.OPENAI_API_KEY || '';
+        if (!apiKey) {
+            socket.emit('rtw:error', { message: 'OPENAI_API_KEY not configured' });
+            return;
+        }
+        try {
+            await rtwManager.createSession(socket.id, rtwLanguage, {
+                onDelta: (delta) => {
+                    accumulatedDelta += delta;
+                    socket.emit('rtw:delta', { delta, accumulated: accumulatedDelta });
+                },
+                onFinal: (transcript) => {
+                    accumulatedDelta = '';
+                    socket.emit('rtw:final', { transcript });
+                },
+                onSpeechStarted: () => {
+                    accumulatedDelta = '';
+                    socket.emit('rtw:speech_started');
+                },
+                onSpeechStopped: () => {
+                    socket.emit('rtw:speech_stopped', { accumulated: accumulatedDelta });
+                },
+                onError: (error) => {
+                    socket.emit('rtw:error', { message: error });
+                },
+                onConnected: () => {
+                    socket.emit('rtw:ready');
+                    console.log(`[RTW] Session ready: ${socket.id}`);
+                },
+                onDisconnected: () => {
+                    socket.emit('rtw:disconnected');
+                },
+            });
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[RTW] Init error for ${socket.id}:`, msg);
+            socket.emit('rtw:error', { message: msg });
+        }
+    });
+
+    // 接收 PCM16 音訊並轉發至 OpenAI
+    socket.on('rtw:audio', (payload: ArrayBuffer | Buffer) => {
+        const session = rtwManager.getSession(socket.id);
+        if (!session) return;
+        const buf = Buffer.isBuffer(payload)
+            ? payload
+            : Buffer.from(payload instanceof ArrayBuffer ? payload : (payload as { buffer: ArrayBuffer }).buffer);
+        session.sendAudio(buf);
+    });
+
+    // 更新語言
+    socket.on('rtw:update_lang', async (data: { language: string }) => {
+        rtwLanguage = data.language;
+        const session = rtwManager.getSession(socket.id);
+        if (session) {
+            await session.updateLanguage(rtwLanguage);
+            socket.emit('rtw:lang_updated', { language: rtwLanguage });
+        }
+    });
+
+    // 手動 commit（關閉 Server VAD 時使用）
+    socket.on('rtw:commit', () => {
+        rtwManager.getSession(socket.id)?.commit();
+    });
+
+    // 斷線清理
+    socket.on('disconnect', () => {
+        console.log(`[RTW] Client disconnected: ${socket.id}`);
+        rtwManager.destroySession(socket.id);
     });
 });
 

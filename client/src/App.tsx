@@ -1,8 +1,13 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import CompareView from './components/CompareView';
 import { useSocket, ConnectionStatus, LangCode, AccumulatedEntry } from './hooks/useSocket';
 import { useContinuousRecorder } from './hooks/useContinuousRecorder';
+import { useRealtimeWhisper } from './hooks/useRealtimeWhisper';
 import './App.css';
+
+// RTW 後端位址
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const RTW_SERVER_URL = ((import.meta as any).env?.VITE_SERVER_URL as string) || 'http://localhost:3001';
 
 // 領域選項
 type DomainCode = 'medical' | 'legal' | 'finance' | 'tech' | 'business' | 'aviation' | 'general';
@@ -57,6 +62,34 @@ function App() {
     const [targetLang, setTargetLang] = useState<LangCode>('en');
     const [domain, setDomain] = useState<DomainCode>('general');
 
+    // ─── RTW 即時字幕（方案 A 混合策略）─────────────────────────────────
+    // speech_stopped 觸發時，通知 useSocket 提交音訊並啟動 Final ASR
+    const handleRtwSpeechStopped = useCallback((_accumulated: string) => {
+        commitAudio();
+    }, [commitAudio]);
+
+    const {
+        partialTranscript: rtwPartial,
+        isConnected: rtwConnected,
+        isSpeaking: rtwSpeaking,
+        isStreaming: rtwStreaming,
+        startStreaming: rtwStartStreaming,
+        stopStreaming: rtwStopStreaming,
+        updateLanguage: rtwUpdateLanguage,
+        clearPartial: rtwClearPartial,
+    } = useRealtimeWhisper({
+        serverUrl: RTW_SERVER_URL,
+        language: sourceLang.startsWith('zh') ? 'zh' : sourceLang.split('-')[0],
+        onSpeechStopped: handleRtwSpeechStopped,
+        onError: (err) => console.error('[RTW]', err),
+    });
+
+    // 語言變更時同步更新 RTW
+    useEffect(() => {
+        const lang = sourceLang.startsWith('zh') ? 'zh' : sourceLang.split('-')[0];
+        rtwUpdateLanguage(lang);
+    }, [sourceLang, rtwUpdateLanguage]);
+
     // 取得當前領域配置
     const currentDomain = DOMAINS.find(d => d.code === domain) || DOMAINS[0];
 
@@ -84,13 +117,16 @@ function App() {
     // 開始錄音的處理函數
     const handleStartRecording = () => {
         startAudioRecording(); // 通知 server 重置 buffer 並創建空泡泡
-        startRecording();      // 開始瀏覽器錄音
+        startRecording();      // 開始瀏覽器錄音（Final ASR 管道）
+        rtwStartStreaming();    // 開始 RTW 串流（Partial 字幕管道）
+        rtwClearPartial();     // 清除舊的 partial
     };
 
     // 停止錄音的處理函數
     const handleStopRecording = () => {
         stopRecording();       // 停止瀏覽器錄音
         stopAudioRecording();  // 清理空泡泡並重置狀態
+        rtwStopStreaming();     // 停止 RTW 串流
     };
 
     // 限制翻譯數量（最多顯示 5 條泡泡，超過就清除舊的）
@@ -213,6 +249,16 @@ function App() {
                             style={{ backgroundColor: getStatusColor(status) }}
                         />
                         <span>{getStatusText(status)}</span>
+                        <span style={{
+                            marginLeft: '8px',
+                            fontSize: '11px',
+                            color: rtwConnected ? '#4caf50' : '#9e9e9e',
+                            background: 'rgba(0,0,0,0.2)',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                        }}>
+                            RTW {rtwConnected ? '✓' : '○'}{rtwStreaming ? ' 🎙️' : ''}
+                        </span>
                     </div>
                 </header>
 
@@ -277,6 +323,21 @@ function App() {
                             <span className="lang-badge">{LANGUAGES.find(l => l.code === sourceLang)?.label}</span>
                         </div>
                         <div className="translation-list">
+                            {/* RTW 即時字幕（方案 A：gpt-realtime-whisper delta） */}
+                            {rtwPartial && recording && (
+                                <div className="translation-item rtw-partial" style={{
+                                    borderLeft: '3px solid #6366f1',
+                                    opacity: 0.85,
+                                    background: 'rgba(99,102,241,0.08)',
+                                }}>
+                                    <p style={{ color: rtwSpeaking ? '#a5b4fc' : '#c7d2fe' }}>
+                                        {rtwSpeaking ? '🎙️ ' : '💬 '}{rtwPartial}
+                                    </p>
+                                    <span className="translation-time" style={{ color: '#6366f1' }}>
+                                        即時字幕 · RTW
+                                    </span>
+                                </div>
+                            )}
                             {items.length === 0 ? (
                                 <p className="no-translations">開始錄音後，原文會顯示在這裡</p>
                             ) : (
