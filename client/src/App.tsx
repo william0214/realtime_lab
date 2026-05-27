@@ -3,6 +3,7 @@ import CompareView from './components/CompareView';
 import { useSocket, ConnectionStatus, LangCode, AccumulatedEntry } from './hooks/useSocket';
 import { useContinuousRecorder } from './hooks/useContinuousRecorder';
 import { useRealtimeWhisper } from './hooks/useRealtimeWhisper';
+import { useGeminiAudio } from './hooks/useGeminiAudio';
 import './App.css';
 
 // RTW 後端位址
@@ -47,6 +48,7 @@ function App() {
     const [activeTab, setActiveTab] = useState<'translate' | 'compare'>('translate');
 
     const {
+        socket,
         status,
         accumulatedTranslations,
         streamingTranslation,
@@ -57,6 +59,25 @@ function App() {
         stopAudioRecording,
         clearTranslations,
     } = useSocket();
+
+    // ─── Gemini 雙通道：語音播放 hook ────────────────────────────────────
+    const {
+        isPlaying: geminiAudioPlaying,
+        isEnabled: geminiAudioEnabled,
+        toggleEnabled: toggleGeminiAudio,
+        bindSocket: bindGeminiAudioSocket,
+        unbindSocket: unbindGeminiAudioSocket,
+    } = useGeminiAudio();
+
+    // socket 就緒後綁定 Gemini 音訊事件
+    useEffect(() => {
+        if (socket) {
+            bindGeminiAudioSocket(socket);
+        }
+        return () => {
+            unbindGeminiAudioSocket();
+        };
+    }, [socket, bindGeminiAudioSocket, unbindGeminiAudioSocket]);
 
     const [sourceLang, setSourceLang] = useState<LangCode>('zh-TW');
     const [targetLang, setTargetLang] = useState<LangCode>('en');
@@ -259,6 +280,28 @@ function App() {
                         }}>
                             RTW {rtwConnected ? '✓' : '○'}{rtwStreaming ? ' 🎙️' : ''}
                         </span>
+                        {/* Gemini 音訊通道開關 */}
+                        <button
+                            onClick={toggleGeminiAudio}
+                            title={geminiAudioEnabled ? '關閉 Gemini 語音播放' : '開啟 Gemini 語音播放'}
+                            style={{
+                                marginLeft: '8px',
+                                fontSize: '11px',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                border: 'none',
+                                cursor: 'pointer',
+                                background: geminiAudioEnabled
+                                    ? (geminiAudioPlaying ? 'rgba(99,102,241,0.5)' : 'rgba(99,102,241,0.2)')
+                                    : 'rgba(0,0,0,0.2)',
+                                color: geminiAudioEnabled ? '#a5b4fc' : '#6b7280',
+                                transition: 'all 0.2s',
+                            }}
+                        >
+                            {geminiAudioEnabled
+                                ? (geminiAudioPlaying ? '🔊 播放中' : '🔊 語音')
+                                : '🔇 靜音'}
+                        </button>
                     </div>
                 </header>
 
@@ -320,7 +363,17 @@ function App() {
                     <div className="translation-column source">
                         <div className="column-header">
                             <h3>🎤 {currentDomain.speakerLabels.source}</h3>
-                            <span className="lang-badge">{LANGUAGES.find(l => l.code === sourceLang)?.label}</span>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                <span className="lang-badge">{LANGUAGES.find(l => l.code === sourceLang)?.label}</span>
+                                <span style={{
+                                    fontSize: '10px',
+                                    padding: '1px 5px',
+                                    borderRadius: '3px',
+                                    background: 'rgba(99,102,241,0.15)',
+                                    color: '#818cf8',
+                                    letterSpacing: '0.03em',
+                                }}>📖 視覺通道</span>
+                            </div>
                         </div>
                         <div className="translation-list">
                             {/* RTW 即時字幕（方案 A：gpt-realtime-whisper delta） */}
@@ -368,7 +421,32 @@ function App() {
                     <div className="translation-column target">
                         <div className="column-header">
                             <h3>🔊 {currentDomain.speakerLabels.target}</h3>
-                            <span className="lang-badge">{LANGUAGES.find(l => l.code === targetLang)?.label}</span>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                <span className="lang-badge">{LANGUAGES.find(l => l.code === targetLang)?.label}</span>
+                                <span style={{
+                                    fontSize: '10px',
+                                    padding: '1px 5px',
+                                    borderRadius: '3px',
+                                    background: geminiAudioEnabled
+                                        ? 'rgba(99,102,241,0.25)'
+                                        : 'rgba(0,0,0,0.15)',
+                                    color: geminiAudioEnabled ? '#a5b4fc' : '#6b7280',
+                                    letterSpacing: '0.03em',
+                                    transition: 'all 0.3s',
+                                }}>
+                                    {geminiAudioEnabled
+                                        ? (geminiAudioPlaying ? '🔊 語音通道 ●' : '🔊 語音通道')
+                                        : '🔇 語音關閉'}
+                                </span>
+                                <span style={{
+                                    fontSize: '10px',
+                                    padding: '1px 5px',
+                                    borderRadius: '3px',
+                                    background: 'rgba(99,102,241,0.15)',
+                                    color: '#818cf8',
+                                    letterSpacing: '0.03em',
+                                }}>📖 視覺通道</span>
+                            </div>
                         </div>
                         <div className="translation-list">
                             {items.length === 0 ? (
@@ -378,13 +456,35 @@ function App() {
                                     // 只有最後一個未完成且非 streaming 的泡泡才顯示綠色（累積中）
                                     const isLastItem = index === items.length - 1;
                                     const showAccumulating = isLastItem && !entry.isComplete && !entry._isStreaming;
+                                    const displayText = entry.displayTargetText || entry.targetText || '';
+                                    // 數字高亮：將數字、單位、剖量等重要資訊高亮顯示（醒目校對機制）
+                                    const highlightNumbers = (text: string) => {
+                                        if (!text) return null;
+                                        const parts = text.split(/(\b\d+(?:[.,]\d+)?(?:\s*(?:mg|mcg|ml|L|kg|g|mmHg|bpm|°C|°F|%|units?|IU|mEq|mmol|ng|μg|cc|oz|lb|min|hr|hrs|hours?|minutes?|seconds?|days?|weeks?|months?))?\b)/gi);
+                                        return parts.map((part, i) => {
+                                            if (/\d/.test(part)) {
+                                                return (
+                                                    <mark key={i} style={{
+                                                        background: 'rgba(251,191,36,0.25)',
+                                                        color: '#fbbf24',
+                                                        borderRadius: '2px',
+                                                        padding: '0 2px',
+                                                        fontWeight: 700,
+                                                    }}>{part}</mark>
+                                                );
+                                            }
+                                            return part;
+                                        });
+                                    };
                                     return (
                                         <div
                                             key={entry.id}
                                             className={`translation-item ${entry._isStreaming ? 'streaming' : ''} ${showAccumulating ? 'accumulating' : ''}`}
                                         >
                                             <p>
-                                                {entry.displayTargetText || entry.targetText || '⏳ 等待翻譯...'}
+                                                {displayText
+                                                    ? highlightNumbers(displayText)
+                                                    : '⏳ 等待翻譯...'}
                                                 {entry.confidence && entry.confidence !== 'high' && (
                                                     <span className="confidence-warning" title={entry.confidence === 'low' ? '語意不完整，翻譯為推測' : '部分語意為推測'}>
                                                         {' '}⚠️

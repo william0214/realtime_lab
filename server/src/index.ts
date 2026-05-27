@@ -374,6 +374,19 @@ async function detectLanguage(text: string): Promise<LangCode> {
     }
 }
 
+// 註冊 Gemini 音訊 Delta 回調 - 即時串流 TTS 音訊給前端
+realtimeClient.onAudioDelta((base64Data: string) => {
+    if (!currentTranslationSocket) return;
+    // 轉發 base64 PCM16 音訊塊給前端播放
+    currentTranslationSocket.emit('gemini:audio_delta', { data: base64Data });
+});
+
+// 音訊完成事件
+realtimeClient.on('audio_done', () => {
+    if (!currentTranslationSocket) return;
+    currentTranslationSocket.emit('gemini:audio_done');
+});
+
 // 註冊語音轉錄 Delta 回調 - 即時字幕（逐字出現 + 每 4 字翻譯）
 realtimeClient.onTranscriptDelta((delta, accumulated) => {
     if (!currentTranslationSocket) {
