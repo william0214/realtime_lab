@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-05-27T12:51:52.391Z",
+  "generatedAt": "2026-05-27T12:59:53.395Z",
   "config": {
     "providers": [
       "gemini-live"
@@ -17,9 +17,9 @@
     {
       "provider": "gemini-live",
       "providerLabel": "Gemini 3.1 Flash Live",
-      "startedAt": "2026-05-27T12:51:23.432Z",
-      "finishedAt": "2026-05-27T12:51:51.389Z",
-      "totalDurationMs": 27957,
+      "startedAt": "2026-05-27T12:59:15.871Z",
+      "finishedAt": "2026-05-27T12:59:52.393Z",
+      "totalDurationMs": 36522,
       "sentences": [
         {
           "sentenceId": "zh-01",
@@ -27,17 +27,17 @@
           "expectedText": "請問您今天哪裡不舒服？",
           "runs": [
             {
-              "firstPartialMs": 2308,
-              "finalTranscriptMs": 2308,
-              "translationMs": 2308,
+              "firstPartialMs": 1810,
+              "finalTranscriptMs": 1810,
+              "translationMs": 1810,
               "transcribedText": "请 问 您 今 天 哪 里 不 舒 服 ?",
-              "translatedText": "Where are you feeling unwell today?",
+              "translatedText": "What seems to be the problem today?",
               "success": true
             }
           ],
-          "avgFirstPartialMs": 2308,
-          "avgFinalMs": 2308,
-          "avgTranslationMs": 2308,
+          "avgFirstPartialMs": 1810,
+          "avgFinalMs": 1810,
+          "avgTranslationMs": 1810,
           "cer": 30,
           "translationScore": 80,
           "tradChineseRatio": 100,
@@ -49,17 +49,17 @@
           "expectedText": "我頭痛已經三天了，而且有點發燒。",
           "runs": [
             {
-              "firstPartialMs": 2572,
-              "finalTranscriptMs": 2572,
-              "translationMs": 2572,
+              "firstPartialMs": 2208,
+              "finalTranscriptMs": 2208,
+              "translationMs": 2208,
               "transcribedText": "我 头 痛 已 经 三 天 了 , 而 且 有 点 发 烧 。",
-              "translatedText": "I've had a headache for three days,",
+              "translatedText": "I've had a headache for three days and a slight fever.",
               "success": true
             }
           ],
-          "avgFirstPartialMs": 2572,
-          "avgFinalMs": 2572,
-          "avgTranslationMs": 2572,
+          "avgFirstPartialMs": 2208,
+          "avgFinalMs": 2208,
+          "avgTranslationMs": 2208,
           "cer": 35.71428571428572,
           "translationScore": 80,
           "tradChineseRatio": 100,
@@ -71,17 +71,17 @@
           "expectedText": "請問您對什麼藥物過敏嗎？",
           "runs": [
             {
-              "firstPartialMs": 2343,
-              "finalTranscriptMs": 2343,
-              "translationMs": 2343,
+              "firstPartialMs": 2107,
+              "finalTranscriptMs": 2107,
+              "translationMs": 2107,
               "transcribedText": "请 问 您 对 什 么 药 物 过 敏 吗 ?",
               "translatedText": "Are you allergic to any medications?",
               "success": true
             }
           ],
-          "avgFirstPartialMs": 2343,
-          "avgFinalMs": 2343,
-          "avgTranslationMs": 2343,
+          "avgFirstPartialMs": 2107,
+          "avgFinalMs": 2107,
+          "avgTranslationMs": 2107,
           "cer": 63.63636363636363,
           "translationScore": 80,
           "tradChineseRatio": 100,
@@ -93,17 +93,17 @@
           "expectedText": "我對青黴素過敏，吃了會起疹子。",
           "runs": [
             {
-              "firstPartialMs": 2494,
-              "finalTranscriptMs": 2494,
-              "translationMs": 2494,
+              "firstPartialMs": 2213,
+              "finalTranscriptMs": 2213,
+              "translationMs": 2213,
               "transcribedText": "我 对 青 霉 素 过 敏 , 吃 了 会 起 疹 子 。",
-              "translatedText": "I'm allergic to penicillin; it gives",
+              "translatedText": "I am allergic to penicillin; taking it gives me a rash.",
               "success": true
             }
           ],
-          "avgFirstPartialMs": 2494,
-          "avgFinalMs": 2494,
-          "avgTranslationMs": 2494,
+          "avgFirstPartialMs": 2213,
+          "avgFinalMs": 2213,
+          "avgTranslationMs": 2213,
           "cer": 30.769230769230774,
           "translationScore": 80,
           "tradChineseRatio": 100,
@@ -115,17 +115,17 @@
           "expectedText": "這個藥一天吃三次，每次一顆，飯後服用。",
           "runs": [
             {
-              "firstPartialMs": 2423,
-              "finalTranscriptMs": 2423,
-              "translationMs": 2423,
+              "firstPartialMs": 8697,
+              "finalTranscriptMs": 8697,
+              "translationMs": 8697,
               "transcribedText": "这 个 要 一 天 吃 三 次 , 每 次 一 颗 , 饭 后 服 用 。",
-              "translatedText": "Take this medication three",
+              "translatedText": "Take one tablet three times a day, after meals.",
               "success": true
             }
           ],
-          "avgFirstPartialMs": 2423,
-          "avgFinalMs": 2423,
-          "avgTranslationMs": 2423,
+          "avgFirstPartialMs": 8697,
+          "avgFinalMs": 8697,
+          "avgTranslationMs": 8697,
           "cer": 37.5,
           "translationScore": 80,
           "tradChineseRatio": 100,
@@ -137,17 +137,17 @@
           "expectedText": "請問掛號要怎麼辦理？",
           "runs": [
             {
-              "firstPartialMs": 1687,
-              "finalTranscriptMs": 1687,
-              "translationMs": 1687,
+              "firstPartialMs": 1800,
+              "finalTranscriptMs": 1800,
+              "translationMs": 1800,
               "transcribedText": "请 问 挂 号 要 怎 么 办 理 ?",
-              "translatedText": "Excuse me,",
+              "translatedText": "How do I proceed with registration?",
               "success": true
             }
           ],
-          "avgFirstPartialMs": 1687,
-          "avgFinalMs": 1687,
-          "avgTranslationMs": 1687,
+          "avgFirstPartialMs": 1800,
+          "avgFinalMs": 1800,
+          "avgTranslationMs": 1800,
           "cer": 66.66666666666666,
           "translationScore": 80,
           "tradChineseRatio": 100,
@@ -159,17 +159,17 @@
           "expectedText": "您需要先到一樓服務台抽號碼牌。",
           "runs": [
             {
-              "firstPartialMs": 2203,
-              "finalTranscriptMs": 2203,
-              "translationMs": 2203,
+              "firstPartialMs": 2180,
+              "finalTranscriptMs": 2180,
+              "translationMs": 2180,
               "transcribedText": "你 需 要 先 到 一 楼 服 务 台 抽 号 码 牌 。",
-              "translatedText": "You need to get a number ticket",
+              "translatedText": "You need to go to the first-floor information desk first to get a number ticket.",
               "success": true
             }
           ],
-          "avgFirstPartialMs": 2203,
-          "avgFinalMs": 2203,
-          "avgTranslationMs": 2203,
+          "avgFirstPartialMs": 2180,
+          "avgFinalMs": 2180,
+          "avgTranslationMs": 2180,
           "cer": 35.71428571428572,
           "translationScore": 80,
           "tradChineseRatio": 100,
@@ -181,17 +181,17 @@
           "expectedText": "我的肚子很痛，痛了一整個晚上。",
           "runs": [
             {
-              "firstPartialMs": 1963,
-              "finalTranscriptMs": 1963,
-              "translationMs": 1963,
+              "firstPartialMs": 2107,
+              "finalTranscriptMs": 2107,
+              "translationMs": 2107,
               "transcribedText": "我 的 肚 子 很 痛 , 痛 了 一 整 个 晚 上 。",
-              "translatedText": "My stomach hurts very badly,",
+              "translatedText": "I have a severe stomachache; it has been hurting all night.",
               "success": true
             }
           ],
-          "avgFirstPartialMs": 1963,
-          "avgFinalMs": 1963,
-          "avgTranslationMs": 1963,
+          "avgFirstPartialMs": 2107,
+          "avgFinalMs": 2107,
+          "avgTranslationMs": 2107,
           "cer": 7.692307692307693,
           "translationScore": 80,
           "tradChineseRatio": 100,
@@ -203,17 +203,17 @@
           "expectedText": "請您先做一個血液檢查，報告大概兩個小時後出來。",
           "runs": [
             {
-              "firstPartialMs": 2871,
-              "finalTranscriptMs": 2871,
-              "translationMs": 2871,
+              "firstPartialMs": 3338,
+              "finalTranscriptMs": 3338,
+              "translationMs": 3338,
               "transcribedText": "你 先 做 一 个 血 液 检 查 , 报 告 大 概 两 个 小 时 后 出 来 。",
-              "translatedText": "First, please have a blood test;",
+              "translatedText": "You will have a blood test now;",
               "success": true
             }
           ],
-          "avgFirstPartialMs": 2871,
-          "avgFinalMs": 2871,
-          "avgTranslationMs": 2871,
+          "avgFirstPartialMs": 3338,
+          "avgFinalMs": 3338,
+          "avgTranslationMs": 3338,
           "cer": 47.61904761904761,
           "translationScore": 80,
           "tradChineseRatio": 100,
@@ -225,17 +225,17 @@
           "expectedText": "謝謝醫生，請問下次什麼時候回診？",
           "runs": [
             {
-              "firstPartialMs": 2078,
-              "finalTranscriptMs": 2078,
-              "translationMs": 2078,
+              "firstPartialMs": 2050,
+              "finalTranscriptMs": 2050,
+              "translationMs": 2050,
               "transcribedText": "谢 谢 医 生 , 请 问 下 次 什 么 时 候 回 诊 ?",
-              "translatedText": "Thank you, doctor. When is the next",
+              "translatedText": "Thank you, doctor. When should I return for the next visit?",
               "success": true
             }
           ],
-          "avgFirstPartialMs": 2078,
-          "avgFinalMs": 2078,
-          "avgTranslationMs": 2078,
+          "avgFirstPartialMs": 2050,
+          "avgFinalMs": 2050,
+          "avgTranslationMs": 2050,
           "cer": 57.14285714285714,
           "translationScore": 80,
           "tradChineseRatio": 100,
@@ -243,9 +243,9 @@
         }
       ],
       "summary": {
-        "avgFirstPartialMs": 2294.2,
-        "avgFinalMs": 2294.2,
-        "avgTranslationMs": 2294.2,
+        "avgFirstPartialMs": 2851,
+        "avgFinalMs": 2851,
+        "avgTranslationMs": 2851,
         "avgCer": 41.245504495504484,
         "avgTranslationScore": 80,
         "avgTradChineseRatio": 100,
@@ -257,7 +257,7 @@
           "zh": {
             "successRate": 100,
             "avgCer": 41.245504495504484,
-            "avgFinalMs": 2294.2
+            "avgFinalMs": 2851
           }
         }
       },

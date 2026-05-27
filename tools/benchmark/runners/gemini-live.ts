@@ -104,9 +104,9 @@ export async function runGeminiLive(
               },
             },
           },
-          // 啟用輸入和輸出音訊轉錄（官方文件確認格式）
+          // 啟用輸出音訊轉錄（取得翻譯文字）
+          // 優化：移除 input_audio_transcription，減少 Gemini 工作量以降低 ASR 延遲
           output_audio_transcription: {},
-          input_audio_transcription: {},
           // 啟用 custom VAD 模式，手動控制 activityStart/activityEnd
           // 這樣我們可以在送完音訊後明確發送 activityEnd
           realtime_input_config: {
@@ -114,17 +114,11 @@ export async function runGeminiLive(
               disabled: true,
             },
           },
+          // 優化：精簡版 system prompt，減少 token 數量以降低推理延遲
           system_instruction: {
             parts: [
               {
-                text: [
-                  `You are a professional real-time simultaneous interpreter for a nursing/medical environment.`,
-                  `The user will speak in ${sourceLangName}.`,
-                  `Your task: Translate what you hear into ${targetLangName} and speak it clearly.`,
-                  `CRITICAL: When translating to Chinese, ALWAYS use Traditional Chinese (繁體中文). NEVER use Simplified Chinese (簡體中文).`,
-                  `Keep the translation accurate, concise, and at a natural speaking pace.`,
-                  `Do not add any explanations, greetings, or filler words.`,
-                ].join(" "),
+                text: `Translate spoken ${sourceLangName} to ${targetLangName}. Medical context. Output translation only. No disclaimers, no explanations, no added text.${targetLang === 'zh' ? ' Use Traditional Chinese only.' : ''}`,
               },
             ],
           },
@@ -173,11 +167,11 @@ export async function runGeminiLive(
             offset += chunkSize;
           }
 
-          // 送入音訊後發送 activityEnd
+          // 送入音訊後發送 activityEnd（50ms 小緩衝，原為 200ms）
           setTimeout(() => {
             ws.send(JSON.stringify({ realtime_input: { activity_end: {} } }));
             if (verbose) console.log(`[gemini-live] 📤 activityEnd @${Date.now() - startTime}ms`);
-          }, 200);
+          }, 50);
         } catch (err) {
           clearTimeout(timer);
           ws.close();
@@ -218,7 +212,7 @@ export async function runGeminiLive(
             if (verbose) {
               console.log(`[gemini-live] ✅ 首個轉錄完成 @${finalTranscriptMs}ms（不等 TTS）`);
             }
-            // 繼續收集完整轉錄，但在 turnComplete 或 500ms 後結束
+            // 繼續收集完整轉錄，但在 turnComplete 或 800ms 後結束
             setTimeout(() => {
               clearTimeout(timer);
               ws.close();
@@ -230,7 +224,7 @@ export async function runGeminiLive(
                 translatedText: outputTranscript,
                 success: outputTranscript.length > 0,
               });
-            }, 500);
+            }, 800);
           }
         }
 
