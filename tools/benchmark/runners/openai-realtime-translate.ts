@@ -1,27 +1,32 @@
 /**
  * Runner: openai-realtime-translate
- * 使用 gpt-realtime-translate 一體化即時翻譯
- * 端點: wss://api.openai.com/v1/realtime/translations
+ * 使用 gpt-realtime-translate 一體化即時翻譯（GA API）
+ * 端點: wss://api.openai.com/v1/realtime/translations?model=gpt-realtime-translate
+ * 
+ * GA API 格式（2026-05）：
+ * - session.update: audio.output.language
+ * - 音訊傳送: session.input_audio_buffer.append
+ * - 輸出事件: session.output_transcript.delta, session.input_transcript.delta
  */
 import * as fs from "fs";
 import WebSocket from "ws";
-import OpenAI from "openai";
 import { TestSentence, SingleRunResult } from "../types";
 
+// GA API 支援的輸出語言（ISO 639-1 格式）
 const SUPPORTED_TARGET_LANGS: Record<string, string> = {
-  en: "english",
-  zh: "chinese",
-  "zh-TW": "chinese",
-  ja: "japanese",
-  ko: "korean",
-  fr: "french",
-  de: "german",
-  es: "spanish",
-  pt: "portuguese",
-  it: "italian",
-  ru: "russian",
-  ar: "arabic",
-  hi: "hindi",
+  en: "en",
+  zh: "zh",
+  "zh-TW": "zh",
+  ja: "ja",
+  ko: "ko",
+  fr: "fr",
+  de: "de",
+  es: "es",
+  pt: "pt",
+  it: "it",
+  ru: "ru",
+  ar: "ar",
+  hi: "hi",
 };
 
 async function mp3ToPcm16(audioPath: string, sampleRate = 24000): Promise<Buffer> {
@@ -50,7 +55,7 @@ export async function runOpenAIRealtimeTranslate(
   audioPath: string,
   apiKey: string,
   targetLang: string,
-  timeoutMs = 30000
+  timeoutMs = 40000
 ): Promise<SingleRunResult> {
   const startTime = Date.now();
 
@@ -66,10 +71,10 @@ export async function runOpenAIRealtimeTranslate(
     };
   }
 
-  const targetLangName =
+  const targetLangCode =
     SUPPORTED_TARGET_LANGS[targetLang] ||
     SUPPORTED_TARGET_LANGS[targetLang.split("-")[0]];
-  if (!targetLangName) {
+  if (!targetLangCode) {
     return {
       firstPartialMs: null,
       finalTranscriptMs: null,
@@ -82,12 +87,13 @@ export async function runOpenAIRealtimeTranslate(
   }
 
   return new Promise((resolve) => {
+    // GA API：URL 中指定 model
     const ws = new WebSocket(
-      "wss://api.openai.com/v1/realtime/translations",
+      "wss://api.openai.com/v1/realtime/translations?model=gpt-realtime-translate",
       {
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          "OpenAI-Beta": "realtime=v1",
+          "OpenAI-Safety-Identifier": "benchmark-test",
         },
       }
     );
@@ -99,11 +105,14 @@ export async function runOpenAIRealtimeTranslate(
     let translatedText = "";
     let resolved = false;
     let audioSentTime: number | null = null;
+    let sessionConfigured = false;
 
     const timer = setTimeout(() => {
       if (!resolved) {
         resolved = true;
-        ws.close();
+        // GA API：送 session.close 再關閉
+        try { ws.send(JSON.stringify({ type: "session.close" })); } catch {}
+        setTimeout(() => ws.close(), 500);
         resolve({
           firstPartialMs,
           finalTranscriptMs,
@@ -111,94 +120,98 @@ export async function runOpenAIRealtimeTranslate(
           transcribedText,
           translatedText,
           success: translatedText.length > 0,
-          error: translatedText.length === 0 ? "Timeout" : undefined,
+          error: translatedText.length === 0 ? `Timeout after ${timeoutMs}ms` : undefined,
         });
       }
     }, timeoutMs);
 
-    ws.on("open", async () => {
-      // 設定 session
-      ws.send(
-        JSON.stringify({
-          type: "translation_session.update",
-          session: {
-            input_audio_format: "pcm16",
-            modalities: ["text"],
-            translation: {
-              model: "gpt-realtime-translate",
-              target_language: targetLangName,
-            },
-            turn_detection: {
-              type: "server_vad",
-              threshold: 0.5,
-              silence_duration_ms: 800,
+    ws.on("open", () => {
+      // GA API：session.update 設定目標語言
+      ws.send(JSON.stringify({
+        type: "session.update",
+        session: {
+          audio: {
+            output: {
+              language: targetLangCode,
             },
           },
-        })
-      );
-
-      try {
-        const pcmBuffer = await mp3ToPcm16(audioPath, 24000);
-        audioSentTime = Date.now();
-
-        const chunkSize = 4800; // 100ms @ 24kHz
-        for (let i = 0; i < pcmBuffer.length; i += chunkSize) {
-          const chunk = pcmBuffer.slice(i, i + chunkSize);
-          ws.send(
-            JSON.stringify({
-              type: "input_audio_buffer.append",
-              audio: chunk.toString("base64"),
-            })
-          );
-          await new Promise((r) => setTimeout(r, 10));
-        }
-        ws.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
-      } catch (err) {
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timer);
-          ws.close();
-          resolve({
-            firstPartialMs: null,
-            finalTranscriptMs: null,
-            translationMs: null,
-            transcribedText: "",
-            translatedText: "",
-            success: false,
-            error: `音訊處理失敗: ${err}`,
-          });
-        }
-      }
+        },
+      }));
     });
 
-    ws.on("message", (data: WebSocket.Data) => {
+    ws.on("message", async (data: WebSocket.Data) => {
       try {
         const event = JSON.parse(data.toString());
         const now = Date.now();
         const elapsed = audioSentTime ? now - audioSentTime : now - startTime;
 
         switch (event.type) {
-          // 轉錄 delta（原始語言）
-          case "conversation.item.input_audio_transcription.delta":
+          case "session.created":
+          case "session.updated":
+            // session 準備好後送音訊
+            if (!sessionConfigured) {
+              sessionConfigured = true;
+              try {
+                const pcmBuffer = await mp3ToPcm16(audioPath, 24000);
+                audioSentTime = Date.now();
+
+                // GA API：使用 session.input_audio_buffer.append
+                const chunkSize = 4800; // 100ms @ 24kHz
+                for (let i = 0; i < pcmBuffer.length; i += chunkSize) {
+                  const chunk = pcmBuffer.slice(i, i + chunkSize);
+                  ws.send(JSON.stringify({
+                    type: "session.input_audio_buffer.append",
+                    audio: chunk.toString("base64"),
+                  }));
+                  await new Promise((r) => setTimeout(r, 10));
+                }
+
+                // 送完後關閉 session（flush 剩餘音訊）
+                ws.send(JSON.stringify({ type: "session.close" }));
+              } catch (err) {
+                if (!resolved) {
+                  resolved = true;
+                  clearTimeout(timer);
+                  ws.close();
+                  resolve({
+                    firstPartialMs: null,
+                    finalTranscriptMs: null,
+                    translationMs: null,
+                    transcribedText: "",
+                    translatedText: "",
+                    success: false,
+                    error: `音訊處理失敗: ${err}`,
+                  });
+                }
+              }
+            }
+            break;
+
+          // GA API 輸出事件
+          case "session.input_transcript.delta":
+            // 原始語言轉錄 delta
             if (firstPartialMs === null) firstPartialMs = elapsed;
             transcribedText += event.delta || "";
             break;
 
-          case "conversation.item.input_audio_transcription.completed":
+          case "session.input_transcript.done":
             finalTranscriptMs = elapsed;
             transcribedText = event.transcript || transcribedText;
             break;
 
-          // 翻譯 delta
-          case "translation.text.delta":
+          case "session.output_transcript.delta":
+            // 翻譯後文字 delta
             if (firstPartialMs === null) firstPartialMs = elapsed;
             translatedText += event.delta || "";
             break;
 
-          // 翻譯完成
-          case "translation.text.done":
+          case "session.output_transcript.done":
             translationMs = elapsed;
-            translatedText = event.text || translatedText;
+            translatedText = event.transcript || translatedText;
+            break;
+
+          case "session.closed":
+            // 翻譯完成，session 正常關閉
             if (!resolved) {
               resolved = true;
               clearTimeout(timer);
@@ -209,7 +222,8 @@ export async function runOpenAIRealtimeTranslate(
                 translationMs,
                 transcribedText,
                 translatedText,
-                success: true,
+                success: translatedText.length > 0,
+                error: translatedText.length === 0 ? "No translation output" : undefined,
               });
             }
             break;
@@ -226,13 +240,13 @@ export async function runOpenAIRealtimeTranslate(
                 transcribedText,
                 translatedText,
                 success: false,
-                error: event.error?.message || "WebSocket error",
+                error: event.error?.message || JSON.stringify(event.error) || "WebSocket error event",
               });
             }
             break;
         }
       } catch {
-        // 忽略
+        // 忽略解析錯誤
       }
     });
 
@@ -263,7 +277,7 @@ export async function runOpenAIRealtimeTranslate(
           transcribedText,
           translatedText,
           success: translatedText.length > 0,
-          error: translatedText.length === 0 ? "Connection closed" : undefined,
+          error: translatedText.length === 0 ? "Connection closed without output" : undefined,
         });
       }
     });

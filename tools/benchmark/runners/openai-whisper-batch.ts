@@ -13,7 +13,7 @@ export async function runOpenAIWhisperBatch(
   apiKey: string,
   targetLang: string
 ): Promise<SingleRunResult> {
-  const client = new OpenAI({ apiKey });
+  const client = new OpenAI({ apiKey, baseURL: 'https://api.openai.com/v1' });
   const startTime = Date.now();
 
   try {

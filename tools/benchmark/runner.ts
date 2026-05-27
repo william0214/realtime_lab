@@ -20,6 +20,9 @@
 import "dotenv/config";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import {
   TestConfig,
   TestSentence,
@@ -34,6 +37,7 @@ import { buildComparison, saveReport } from "./reporter";
 import { runOpenAIWhisperBatch } from "./runners/openai-whisper-batch";
 import { runOpenAIRealtimeWhisper } from "./runners/openai-realtime-whisper";
 import { runOpenAIRealtimeTranslate } from "./runners/openai-realtime-translate";
+import { runOpenAIRealtime2 } from "./runners/openai-realtime2";
 import { runGladia } from "./runners/gladia";
 import { runDeeepgram } from "./runners/deepgram";
 import { runGeminiLive } from "./runners/gemini-live";
@@ -199,6 +203,9 @@ async function runProvider(
           break;
         case "openai-translate":
           result = await runOpenAIRealtimeTranslate(sentence, audioPath, apiKey, config.targetLang, config.timeoutMs);
+          break;
+        case "openai-realtime2":
+          result = await runOpenAIRealtime2(sentence, audioPath, apiKey, config.targetLang, config.timeoutMs);
           break;
         case "gladia":
           result = await runGladia(sentence, audioPath, apiKey, config.targetLang, config.timeoutMs);
@@ -379,6 +386,7 @@ async function main() {
   console.log("🔑 API Key 狀態：");
   const keyStatus: Record<string, boolean> = {
     OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+    GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
     GLADIA_API_KEY: !!process.env.GLADIA_API_KEY,
     DEEPGRAM_API_KEY: !!process.env.DEEPGRAM_API_KEY,
     SONIOX_API_KEY: !!process.env.SONIOX_API_KEY,

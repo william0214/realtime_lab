@@ -18,7 +18,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // 載入環境變數 (從 server/.env)
-const envPath = path.join(__dirname, "..", "server", ".env");
+const envPath = path.join(__dirname, ".env");
 if (fs.existsSync(envPath)) {
     const envContent = fs.readFileSync(envPath, "utf-8");
     envContent.split("\n").forEach((line) => {
@@ -53,6 +53,7 @@ const idFilter = args.find((a) => a.startsWith("--id="))?.split("=")[1];
 // 初始化 OpenAI 客戶端
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
+    baseURL: 'https://api.openai.com/v1',
 });
 
 // 載入測試句子
