@@ -926,7 +926,10 @@ io.on('connection', (socket) => {
 // 收到 transcript.delta → 轉發 'rtw:delta' 給前端
 // 收到 speech_stopped → 轉發 'rtw:speech_stopped'，前端觸發 Final ASR
 const rtwManager = new RealtimeWhisperManager(process.env.OPENAI_API_KEY || '');
-
+// WarmPool 在 server 啟動後非同步預建連線（不阻塞 server 啟動）
+setTimeout(() => {
+  rtwManager.startWarmPool().catch(e => console.warn('[WarmPool] Start failed:', e.message));
+}, 2000); // 等待 2 秒讓 server 完全啟動後再預建連線
 const rtwNs = io.of('/rtw');
 rtwNs.on('connection', (socket) => {
     console.log(`[RTW] Client connected: ${socket.id}`);
