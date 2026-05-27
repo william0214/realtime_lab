@@ -38,32 +38,42 @@ export async function getEphemeralToken(
   apiKey: string,
   language: string = 'zh',
 ): Promise<EphemeralTokenResult> {
-  const openai = new OpenAI({ apiKey });
-
-  // POST /v1/realtime/sessions
-  const response = await (openai as unknown as {
-    post: (path: string, body: Record<string, unknown>) => Promise<{
-      client_secret: { value: string; expires_at: number };
-    }>;
-  }).post('/v1/realtime/sessions', {
-    model: 'gpt-realtime-whisper',
-    intent: 'transcription',
-    input_audio_format: 'pcm16',
-    input_audio_transcription: {
+  // 使用原生 fetch 直接呼叫 OpenAI REST API
+  // 參考：https://platform.openai.com/docs/guides/realtime-sessions
+  const res = await fetch('https://api.openai.com/v1/realtime/sessions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
       model: 'gpt-realtime-whisper',
-      language,
-    },
-    turn_detection: {
-      type: 'server_vad',
-      threshold: 0.4,
-      silence_duration_ms: 600,
-      prefix_padding_ms: 200,
-    },
+      input_audio_format: 'pcm16',
+      input_audio_transcription: {
+        model: 'gpt-realtime-whisper',
+        language,
+      },
+      turn_detection: {
+        type: 'server_vad',
+        threshold: 0.4,
+        silence_duration_ms: 600,
+        prefix_padding_ms: 200,
+      },
+    }),
   });
 
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`OpenAI sessions API error ${res.status}: ${body}`);
+  }
+
+  const data = await res.json() as {
+    client_secret: { value: string; expires_at: number };
+  };
+
   return {
-    clientSecret: response.client_secret.value,
-    expiresAt: response.client_secret.expires_at * 1000,
+    clientSecret: data.client_secret.value,
+    expiresAt: data.client_secret.expires_at * 1000,
   };
 }
 
@@ -106,7 +116,7 @@ export class RealtimeWhisperSession extends EventEmitter {
       const ws = new WebSocket(REALTIME_WS_URL, {
         headers: {
           Authorization: `Bearer ${this.opts.apiKey}`,
-          'OpenAI-Beta': 'realtime=v1',
+          // GA API: OpenAI-Beta header 不需要，加上反而會被拒絕
         },
       });
       this.ws = ws;
