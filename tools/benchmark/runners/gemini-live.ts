@@ -205,11 +205,33 @@ export async function runGeminiLive(
           const text = ot.text as string;
           if (firstPartialMs === null) {
             firstPartialMs = elapsed;
+            translationMs = elapsed;
             if (verbose) console.log(`[gemini-live] ⚡ 首字 @${elapsed}ms: "${text}"`);
           }
           outputTranscript += text;
-          translationMs = elapsed;
           if (verbose) console.log(`[gemini-live] 📝 output @${elapsed}ms: "${text}"`);
+
+          // 收到第一個 outputTranscription 就立即視為完成
+          // 這樣延遲更接近實際使用體驗（使用者看到翻譯文字就夠，不需等 TTS 說完）
+          if (finalTranscriptMs === null) {
+            finalTranscriptMs = elapsed;
+            if (verbose) {
+              console.log(`[gemini-live] ✅ 首個轉錄完成 @${finalTranscriptMs}ms（不等 TTS）`);
+            }
+            // 繼續收集完整轉錄，但在 turnComplete 或 500ms 後結束
+            setTimeout(() => {
+              clearTimeout(timer);
+              ws.close();
+              resolve({
+                firstPartialMs,
+                finalTranscriptMs,
+                translationMs,
+                transcribedText: inputTranscript,
+                translatedText: outputTranscript,
+                success: outputTranscript.length > 0,
+              });
+            }, 500);
+          }
         }
 
         // inputTranscription：輸入語音的文字稿（即原文轉錄）
