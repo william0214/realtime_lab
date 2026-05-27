@@ -1,7 +1,7 @@
 # 語音翻譯系統 — 完整測試結果總覽
 
-**文件版本**：v1.1  
-**最後更新**：2026-05-27（Gemini 串流 vs 離線對照測試完成）  
+**文件版本**：v1.2  
+**最後更新**：2026-05-27（成本比較報告、Automatic VAD 測試、雙通道前端設計）  
 **測試環境**：新加坡沙箱（sandbox）→ `api.openai.com`  
 **專案**：護理推車即時雙向翻譯系統（realtime-translation）  
 **測試平台**：[william0214/realtime_lab](https://github.com/william0214/realtime_lab)
@@ -17,10 +17,13 @@
 | [Provider Benchmark](#二provider-benchmark-測試) | 5 個 ASR Provider 的延遲與準確度比較 | ✅ 完成 |
 | [Gemini 3.1 Flash Live Benchmark](#二b-gemini-31-flash-live-benchmark) | Gemini 3.1 Flash Live 完整 10 句測試 | ✅ 完成 |
 | [Gemini 串流 vs 離線對照測試](#二c-gemini-串流-vs-離線對照測試) | PCM16 串流 + VAD 端點偵測效果驗證 | ✅ 完成 |
+| [Gemini Automatic VAD 測試](#二d-gemini-automatic-vad-vs-manual-vad) | Automatic VAD vs Manual VAD 延遲對比 | ✅ 完成 |
 | [延遲分解分析](#三延遲分解分析) | gpt-realtime-whisper 各環節耗時 | ✅ 完成 |
 | [Realtime vs Batch 比較](#四realtime-vs-batch-延遲比較) | gpt-realtime-whisper vs gpt-4o-transcribe | ✅ 完成 |
 | [簡繁轉換效能比較](#五簡繁轉換效能比較) | opencc-js vs zhconv | ✅ 完成 |
 | [方案 A RTW Socket.IO 測試](#六方案-a-rtw-socketio-端對端測試) | 後端 WebSocket 代理端對端驗證 | ✅ 完成 |
+| [成本比較報告](#十一成本比較報告) | 各方案 API 成本分析與護理場景估算 | ✅ 完成 |
+| [雙通道前端設計](#十二雙通道前端設計) | 語音通道 + 視覺通道實作說明 | ✅ 完成 |
 
 ---
 
@@ -136,6 +139,43 @@
 - **延遲**：比 gpt-realtime-whisper 慢 5-8 倍，不適合即時字幕場景
 - **ASR**：輸出簡體中文，需後處理轉換；zh-04 出現 27 秒異常延遲（偶發）
 - **建議**：不建議取代現有方案 A，可作為備援翻譯管道
+
+---
+
+## 二D、Gemini Automatic VAD vs Manual VAD
+
+**測試日期**：2026-05-27  
+**測試腳本**：`tools/test-autovad-vs-manual.ts`  
+**目的**：驗證 Automatic VAD（`silenceDurationMs=500ms`）是否比 Manual VAD（`activityEnd` 在音訊送完後 50ms）更快  
+**runner**：`tools/benchmark/runners/gemini-live-autovad.ts`
+
+### 2D.1 測試設計
+
+| 項目 | Manual VAD（gemini-live.ts） | Automatic VAD（gemini-live-autovad.ts） |
+|---|---|---|
+| **VAD 模式** | Custom VAD（手動控制） | Automatic VAD（伺服器端偵測） |
+| **activityEnd 觸發** | 音訊全部送完後 50ms | 伺服器偵測靜音 500ms 後自動觸發 |
+| **silenceDurationMs** | N/A | 500ms |
+| **音訊傳輸方式** | 一次性送入全部音訊 | 一次性送入全部音訊 |
+
+### 2D.2 逐句對照結果（5 句）
+
+| 句子 | Manual VAD | Auto VAD | 差異 |
+|---|---|---|---|
+| zh-01 | 1,720ms | 1,841ms | +121ms（Manual 更快） |
+| zh-02 | 2,066ms | 2,239ms | +173ms（Manual 更快） |
+| zh-03 | 1,888ms | 2,153ms | +265ms（Manual 更快） |
+| zh-06 | 1,616ms | 1,767ms | +151ms（Manual 更快） |
+| zh-08 | 2,197ms | 2,133ms | -64ms（Auto 更快，誤差範圍內） |
+| **平均** | **1,897ms** | **2,027ms** | **+130ms（Manual 更快）** |
+
+### 2D.3 結論
+
+**Manual VAD 比 Automatic VAD 快約 130ms**。原因：在 benchmark 情境（音訊已預錄完畢），Manual VAD 在音訊送完後 50ms 就送 `activityEnd`，而 Automatic VAD 需要等伺服器偵測靜音 500ms。
+
+Automatic VAD 的優勢僅在**真實即時對話**（使用者邊說邊傳）中才會顯現，因為伺服器可以在接收音訊的同時做 VAD 偵測，說完後立即觸發 ASR，不需要客戶端送 `activityEnd`。
+
+**結論**：繼續使用 Manual VAD 作為 benchmark 和產品的最佳選擇。
 
 ---
 
@@ -452,6 +492,76 @@ ASR 推理（F+G）  ：1,217ms ████████████████
 | `test-converter-bench.mjs` | opencc-js vs zhconv 效能比較 | `tools/` |
 | `test-rtw-socketio.ts` | RTW Socket.IO 端對端測試 | `tools/` |
 | `test-whisper-prompt.ts` | prompt 參數支援性測試（確認不支援） | `tools/` |
+
+---
+
+---
+
+## 十一、成本比較報告
+
+**完整報告**：`docs/COST_COMPARISON_REPORT.md`  
+**定價來源**：OpenAI API Pricing、Gemini Developer API Pricing（均為 2026-05-27）
+
+### 11.1 各方案每分鐘成本（官方定價）
+
+| 方案 | 模型 | 每分鐘成本 | 功能 |
+|---|---|---|---|
+| **gpt-realtime-whisper** | GPT-Realtime-Whisper | **$0.017 / min** | ASR 串流 |
+| **gpt-realtime-translate** | GPT-Realtime-Translate | $0.034 / min | ASR + 翻譯串流 |
+| **GPT-Realtime-2** | gpt-4o-realtime | ~$0.060 / min | 全功能語音對話 |
+| **gpt-4o-transcribe** | GPT-4o Transcribe | **$0.006 / min** | Batch ASR |
+| **gpt-4o-mini-transcribe** | GPT-4o Mini Transcribe | **$0.003 / min** | Batch ASR（輕量） |
+| **Gemini 3.1 Flash Live** | gemini-3.1-flash-live-preview | ~$0.014 / min | ASR + 翻譯一體化 |
+
+> 音訊 Token 換算：25 tokens / 秒（OpenAI 與 Gemini 均適用）
+
+### 11.2 護理推車月成本估算（單台，每日 20 次 × 10 分鐘 × 22 天 = 73.3 小時）
+
+| 方案 | 月成本（USD） | 備註 |
+|---|---|---|
+| gpt-4o-mini-transcribe Batch | **$13.2** | 無即時字幕 |
+| gpt-4o-transcribe Batch | **$26.4** | 無即時字幕 |
+| Gemini 3.1 Flash Live | **$61.6** | ASR + 翻譯，延遲 ~2s |
+| gpt-realtime-whisper（方案 A） | **$74.7** | 即時字幕，需另接翻譯 |
+| 方案 A+（雙管道） | **$101.1** | 即時字幕 + 高準確度 Final |
+| gpt-realtime-translate | **$149.5** | 即時翻譯串流 |
+
+### 11.3 建議
+
+- **即時翻譯主場景**：方案 A+（雙管道，$101.1/月/台）— 最佳延遲 + 準確度
+- **成本優先**：Gemini 3.1 Flash Live（$61.6/月/台）— ASR + 翻譯一體化，延遲 ~2s
+- **大規模部署**：方案 A + VAD 靜音優化（節省 ~30%）+ mini Batch Final
+
+---
+
+## 十二、雙通道前端設計
+
+**實作日期**：2026-05-27  
+**相關 Commit**：`4bdc41f`
+
+### 12.1 設計動機
+
+在醫療場景中，語音翻譯必須提供雙重保障：
+
+1. **語音通道**：即時播放翻譯語音（Gemini TTS PCM16），供雙方即時溝通
+2. **視覺通道**：畫面上即時顯示原文逐字稿 + 譯文，供醫生快速掃視確認關鍵數字（劑量、血壓值等）
+
+### 12.2 技術實作
+
+| 元件 | 說明 |
+|---|---|
+| **後端 `audio_delta` 轉發** | `realtimeClient.onAudioDelta()` → `socket.emit('gemini:audio_delta', ...)` |
+| **`useGeminiAudio.ts` hook** | WebAudio PCM16 串流播放器，精確排程（`AudioBufferSourceNode.start + offset`） |
+| **語音通道控制按鈕** | 頂部狀態列，顯示「🔊 播放中 / 🔇 靜音」 |
+| **視覺通道逐字稿** | 原文欄「📖 視覺通道」，譯文欄「🔊 語音通道 + 📖 視覺通道」 |
+| **數字高亮機制** | 自動偵測並標黃數字與醫療單位（mg、mmHg、bpm、°C 等） |
+
+### 12.3 延遲影響
+
+| 通道 | 對延遲的影響 |
+|---|---|
+| 視覺通道（逐字稿） | **零影響**（被動接收現有事件） |
+| 語音通道（PCM 播放） | **降低感知延遲**（第一個音訊塊到達即播放，不等 `turnComplete`） |
 
 ---
 
