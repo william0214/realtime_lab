@@ -5,7 +5,11 @@
  */
 import * as fs from "fs";
 import WebSocket from "ws";
+import * as OpenCC from "opencc-js";
 import { TestSentence, SingleRunResult } from "../types";
+
+// 建立簡體→繁體轉換器（一次性初始化）
+const toTraditional = OpenCC.Converter({ from: "cn", to: "tw" });
 
 const MODEL = "gpt-realtime-whisper";
 // GA API: transcription session 使用 intent=transcription 查詢參數
@@ -108,6 +112,8 @@ export async function runOpenAIRealtimeWhisper(
                           sentence.lang === "th" ? "th" :
                           sentence.lang === "ja" ? "ja" :
                           sentence.lang === "en" ? "en" : undefined,
+                // 注意：gpt-realtime-whisper GA API 不支援 prompt 欄位
+                // 改用後處理 OpenCC 簡繁轉換
                 delay: "low", // 低延遲模式
               },
             },
@@ -174,6 +180,10 @@ export async function runOpenAIRealtimeWhisper(
           case "conversation.item.input_audio_transcription.completed":
             finalTranscriptMs = elapsed;
             transcribedText = event.transcript || transcribedText;
+            // 後處理：若為中文，使用 OpenCC 將簡體轉為繁體
+            if (sentence.lang === "zh" && transcribedText) {
+              transcribedText = toTraditional(transcribedText);
+            }
             if (!resolved) {
               resolved = true;
               clearTimeout(timer);
