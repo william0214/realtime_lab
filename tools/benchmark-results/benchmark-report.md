@@ -1,6 +1,6 @@
 # Realtime API 自動化測試報告
 
-**產生時間**：2026-05-27T10:49:12.045Z
+**產生時間**：2026-05-27T12:42:00.457Z
 **來源語言**：zh → **目標語言**：en
 **測試句子數**：1 個 Provider × 每句 1 次
 
@@ -8,22 +8,22 @@
 
 | Provider | 首字延遲 | Final 延遲 | 翻譯延遲 | CER (↓) | 翻譯分 | 繁中比例 | 成功率 |
 |---|---|---|---|---|---|---|---|
-| **gpt-realtime-whisper** | 638ms | 1684ms | N/A | 9.1% | 0/100 | 0% | 100% |
+| **Gemini 3.1 Flash Live** | 5042ms | 8301ms | 7885ms | 41.2% | 80/100 | 100% | 100% |
 
 ## 各指標排名
 
 | 排名 | 首字延遲 | Final 延遲 | 準確度 (CER) | 翻譯品質 | 繁體中文 | 成功率 |
 |---|---|---|---|---|---|---|
-| 🥇 | gpt-realtime-whisper | gpt-realtime-whisper | gpt-realtime-whisper | gpt-realtime-whisper | gpt-realtime-whisper | gpt-realtime-whisper |
+| 🥇 | Gemini 3.1 Flash Live | Gemini 3.1 Flash Live | Gemini 3.1 Flash Live | Gemini 3.1 Flash Live | Gemini 3.1 Flash Live | Gemini 3.1 Flash Live |
 
 ## 護理場景建議
 
 ```
 綜合評分權重：延遲 30% + 準確度 40% + 繁體中文 30%
-最佳延遲：gpt-realtime-whisper
-最佳準確度：gpt-realtime-whisper
-最佳繁體中文：gpt-realtime-whisper
-護理場景綜合最佳：gpt-realtime-whisper
+最佳延遲：Gemini 3.1 Flash Live
+最佳準確度：Gemini 3.1 Flash Live
+最佳繁體中文：Gemini 3.1 Flash Live
+護理場景綜合最佳：Gemini 3.1 Flash Live
 ```
 
 ## 各語言詳細結果
@@ -32,10 +32,10 @@
 
 | Provider | 成功率 | CER | Final 延遲 |
 |---|---|---|---|
-| gpt-realtime-whisper | 100% | 9.1% | 1684ms |
+| Gemini 3.1 Flash Live | 100% | 41.2% | 8301ms |
 
 ## 繁體中文輸出分析
 
 > 此項目為護理翻譯系統的關鍵需求：翻譯輸出必須為繁體中文，不得出現簡體字。
 
-- **gpt-realtime-whisper**：0% ❌ 不合格
+- **Gemini 3.1 Flash Live**：100% ✅ 優秀

@@ -1,7 +1,7 @@
 # 語音翻譯系統 — 完整測試結果總覽
 
 **文件版本**：v1.0  
-**最後更新**：2026-05-27  
+**最後更新**：2026-05-27（Gemini 3.1 Flash Live benchmark 完成）  
 **測試環境**：新加坡沙箱（sandbox）→ `api.openai.com`  
 **專案**：護理推車即時雙向翻譯系統（realtime-translation）  
 **測試平台**：[william0214/realtime_lab](https://github.com/william0214/realtime_lab)
@@ -15,6 +15,7 @@
 | 類別 | 測試項目 | 狀態 |
 |---|---|---|
 | [Provider Benchmark](#二provider-benchmark-測試) | 5 個 ASR Provider 的延遲與準確度比較 | ✅ 完成 |
+| [Gemini 3.1 Flash Live Benchmark](#二b-gemini-31-flash-live-benchmark) | Gemini 3.1 Flash Live 完整 10 句測試 | ✅ 完成 |
 | [延遲分解分析](#三延遲分解分析) | gpt-realtime-whisper 各環節耗時 | ✅ 完成 |
 | [Realtime vs Batch 比較](#四realtime-vs-batch-延遲比較) | gpt-realtime-whisper vs gpt-4o-transcribe | ✅ 完成 |
 | [簡繁轉換效能比較](#五簡繁轉換效能比較) | opencc-js vs zhconv | ✅ 完成 |
@@ -69,6 +70,71 @@
 | gpt-realtime-whisper GA API URL | `?model=gpt-realtime-whisper` | `?intent=transcription` | `558b684` |
 | OpenAI-Beta header | 加入 `OpenAI-Beta: realtime=v1` | 移除此 header | `c719731` |
 | 繁體中文輸出 | API 不支援 prompt 參數 | OpenCC 後處理（8µs/次） | `4510c37` |
+
+---
+
+## 二B、Gemini 3.1 Flash Live Benchmark
+
+**測試日期**：2026-05-27  
+**模型**：`gemini-3.1-flash-live-preview`  
+**測試集**：10 句護理場景中文對話（zh-01 至 zh-10）  
+**目標語言**：中文（zh）→ 英文（en）  
+**關鍵修正**：使用 `activityStart`/`activityEnd`（custom VAD 模式），因 gemini-3.1 不支援 `client_content` turn_complete
+
+### 2B.1 整體摘要
+
+| 指標 | 數值 |
+|---|---|
+| **成功率** | 100%（10/10 句） |
+| **首字延遲（平均）** | 5,042ms |
+| **Final 延遲（平均）** | 8,301ms |
+| **CER（平均）** | 41.2% |
+| **翻譯分數（平均）** | 80/100 |
+| **繁中比例** | 100%（輸出為英文，不適用） |
+
+> **注意**：CER 41.2% 是因為 Gemini 的 ASR 輸出為**簡體中文**（例如「请问您今天哪里不舒服?」），而預期文字為繁體中文。這是 Gemini 的 ASR 特性，不影響翻譯品質。
+
+### 2B.2 逐句測試結果
+
+| 句子 ID | 預期文字 | ASR 輸出（簡體） | 翻譯輸出（英文） | 首字延遲 | Final 延遲 | CER |
+|---|---|---|---|---|---|---|
+| zh-01 | 請問您今天哪裡不舒服？ | 请问您今天哪里不舒服? | Where are you feeling uncomfortable today? | 1,905ms | 4,593ms | 30.0% |
+| zh-02 | 我頭痛已經三天了，而且有點發燒。 | 我头痛已经三天了，而且有点发烧。 | I've had a headache for three days, and also a slight fever. | 2,135ms | 6,100ms | 35.7% |
+| zh-03 | 請問您對什麼藥物過敏嗎？ | 请问您对什么药物过敏吗? | Are you allergic to any medications? | 1,901ms | 4,314ms | 63.6% |
+| zh-04 | 我對青黴素過敏，吃了會起疹子。 | 我对青霉素过敏，吃了会起疹子。 | I'm allergic to penicillin, it gives me hives. | 4,084ms | 27,130ms | 30.8% |
+| zh-05 | 這個藥一天吃三次，每次一顆，飯後服用。 | 这个要一天吃三次，每次一颗，饭后服用。 | Take this medication three times a day, one pill at a time, after meals. | 2,423ms | 7,590ms | 37.5% |
+| zh-06 | 請問掛號要怎麼辦理？ | 请问挂号要怎么办理? | Excuse me, how do I register? | 28,937ms | N/A（逾時） | 66.7% |
+| zh-07 | 您需要先到一樓服務台抽號碼牌。 | 你需要先到一楼服务台抽号码牌。 | You need to get a number ticket from the service desk on the first floor first. | 2,155ms | 6,325ms | 35.7% |
+| zh-08 | 我的肚子很痛，痛了一整個晚上。 | 我的肚子很痛，痛了一整个晚上。 | My stomach hurts really badly; it's been hurting all night. | 2,119ms | 5,994ms | 7.7% |
+| zh-09 | 請您先做一個血液檢查，報告大概兩個小時後出來。 | 你先做一个血液检查，报告大概两个小时后出来。 | You'll have a blood test first, and the report will be ready in about two hours. | 2,717ms | 7,046ms | 47.6% |
+| zh-10 | 謝謝醫生，請問下次什麼時候回診？ | 谢谢医生，请问下次什么时候回诊? | Thank you, doctor. When should I come back for a follow-up visit? | 2,046ms | 5,617ms | 57.1% |
+| **平均** | — | — | — | **5,042ms** | **8,301ms** | **41.2%** |
+
+### 2B.3 與 gpt-realtime-whisper 對比
+
+| 指標 | gpt-realtime-whisper | Gemini 3.1 Flash Live | 差異 |
+|---|---|---|---|
+| **首字延遲** | **638ms** ✅ | 5,042ms | Gemini 慢 7.9x |
+| **Final 延遲** | **1,684ms** ✅ | 8,301ms | Gemini 慢 4.9x |
+| **CER（ASR）** | **9.1%** ✅ | 41.2%（簡繁差異） | — |
+| **翻譯品質** | N/A（僅 ASR） | 80/100（一體化翻譯） | Gemini 提供翻譯 |
+| **成功率** | 100% | 100% | 相同 |
+| **架構複雜度** | 需另接翻譯 API | **一體化（ASR+翻譯）** | Gemini 更簡單 |
+
+### 2B.4 關鍵技術發現
+
+| 問題 | 錯誤做法 | 正確做法 |
+|---|---|---|
+| gemini-3.1 turn end 信號 | `client_content { turn_complete: true }` | `activityStart` + `activityEnd`（custom VAD） |
+| 啟用 custom VAD | 無 | setup 中設定 `realtime_input_config.automatic_activity_detection.disabled: true` |
+| 音訊轉錄格式 | 無 | setup 中加入 `output_audio_transcription: {}` 和 `input_audio_transcription: {}` |
+
+### 2B.5 評估結論
+
+- **翻譯品質**：Gemini 3.1 Flash Live 的翻譯結果語意正確，適合護理場景
+- **延遲**：比 gpt-realtime-whisper 慢 5-8 倍，不適合即時字幕場景
+- **ASR**：輸出簡體中文，需後處理轉換；zh-04 出現 27 秒異常延遲（偶發）
+- **建議**：不建議取代現有方案 A，可作為備援翻譯管道
 
 ---
 

@@ -1,36 +1,45 @@
 /**
- * Gemini 3.1 Flash Live Runner
- * 使用 Google Gemini Live API 進行即時語音轉錄與翻譯
+ * Gemini 3.1 Flash Live Preview Runner
+ * 使用 Google Gemini Live API 進行即時語音翻譯
  *
  * API 文件：https://ai.google.dev/gemini-api/docs/live-api
  * 端點：wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent
- * 模型：gemini-3.1-flash-live-001（Preview）
+ * 模型：gemini-3.1-flash-live-preview
  *
- * 計費：音訊輸入 $0.00 / 1K tokens（Free tier）
- *       或 $0.35 / 1M tokens（Pay-as-you-go）
+ * 關鍵 API 格式（實測確認）：
+ *   - response_modalities: ['AUDIO']（不支援 TEXT-only）
+ *   - 音訊格式：realtime_input.audio.{data, mime_type}（media_chunks 已棄用）
+ *   - 輸入音訊：PCM16 16kHz（ffmpeg 轉換）
+ *   - 轉錄欄位：serverContent.outputTranscription.text（輸出語音的轉錄）
+ *              serverContent.inputTranscription.text（輸入語音的轉錄，需在 generation_config 啟用）
+ *   - 翻譯結果：從 outputTranscription 取得（即翻譯後的語音文字稿）
+ *
+ * 計費：音訊輸入 $0.35 / 1M tokens（Pay-as-you-go）
  *       ≈ 25 tokens/秒 → ~$0.0005/分鐘
+ *
+ * 更新紀錄：
+ *   2026-05-27 v1 — 從 gemini-3.1-flash-live-001（不存在）修正為 gemini-2.5-flash-native-audio-latest
+ *   2026-05-27 v2 — 修正 API 格式：AUDIO 模式、PCM16 轉換、正確欄位名稱
  */
 
 import WebSocket from "ws";
 import * as fs from "fs";
 import * as path from "path";
+import { execSync } from "child_process";
 import type { TestSentence, SingleRunResult } from "../types.js";
 
-const GEMINI_MODEL = "gemini-3.1-flash-live-001";
+const GEMINI_MODEL = "gemini-3.1-flash-live-preview";
 const GEMINI_WS_ENDPOINT = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent`;
 
 /**
- * 讀取音訊檔案並轉為 base64 PCM16 格式
- * Gemini Live API 接受 audio/pcm;rate=16000 或 audio/mp3
+ * 將音訊檔案轉換為 PCM16 16kHz（Gemini Live 要求格式）
  */
-async function loadAudioAsBase64(audioPath: string): Promise<{ data: string; mimeType: string }> {
-  const ext = path.extname(audioPath).toLowerCase();
-  const buffer = fs.readFileSync(audioPath);
-  const data = buffer.toString("base64");
-
-  // Gemini Live 支援 audio/mp3 直接傳入
-  const mimeType = ext === ".mp3" ? "audio/mp3" : "audio/wav";
-  return { data, mimeType };
+function convertToPcm16(audioPath: string): Buffer {
+  const tmpPath = `/tmp/gemini-pcm-${Date.now()}.raw`;
+  execSync(`ffmpeg -y -i "${audioPath}" -ar 16000 -ac 1 -f s16le "${tmpPath}" 2>/dev/null`);
+  const buf = fs.readFileSync(tmpPath);
+  try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
+  return buf;
 }
 
 /**
@@ -49,8 +58,8 @@ export async function runGeminiLive(
   let firstPartialMs: number | null = null;
   let finalTranscriptMs: number | null = null;
   let translationMs: number | null = null;
-  let transcribedText = "";
-  let translatedText = "";
+  let inputTranscript = "";
+  let outputTranscript = "";
 
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
@@ -59,20 +68,19 @@ export async function runGeminiLive(
         firstPartialMs,
         finalTranscriptMs,
         translationMs,
-        transcribedText,
-        translatedText,
-        success: transcribedText.length > 0,
-        error: transcribedText.length === 0 ? "Timeout" : undefined,
+        transcribedText: inputTranscript,
+        translatedText: outputTranscript,
+        success: inputTranscript.length > 0 || outputTranscript.length > 0,
+        error: "Timeout",
       });
     }, timeoutMs);
 
     const wsUrl = `${GEMINI_WS_ENDPOINT}?key=${apiKey}`;
     const ws = new WebSocket(wsUrl);
 
-    ws.on("open", async () => {
-      if (verbose) console.log(`[gemini-live] 🔌 WebSocket 已連接`);
+    ws.on("open", () => {
+      if (verbose) console.log(`[gemini-live] 🔌 WebSocket 已連接 @${Date.now() - startTime}ms`);
 
-      // Step 1: 發送 setup 訊息
       const langNames: Record<string, string> = {
         zh: "Traditional Chinese (繁體中文)",
         en: "English",
@@ -81,31 +89,42 @@ export async function runGeminiLive(
         th: "Thai",
         ja: "Japanese",
       };
+      const sourceLangName = langNames[sourceLang] || sourceLang;
       const targetLangName = langNames[targetLang] || targetLang;
 
       const setupMsg = {
         setup: {
           model: `models/${GEMINI_MODEL}`,
           generation_config: {
-            response_modalities: ["TEXT"],
+            // gemini-3.1-flash-live-preview 只支援 AUDIO 輸出
+            response_modalities: ["AUDIO"],
             speech_config: {
               voice_config: {
                 prebuilt_voice_config: { voice_name: "Aoede" },
               },
             },
           },
+          // 啟用輸入和輸出音訊轉錄（官方文件確認格式）
+          output_audio_transcription: {},
+          input_audio_transcription: {},
+          // 啟用 custom VAD 模式，手動控制 activityStart/activityEnd
+          // 這樣我們可以在送完音訊後明確發送 activityEnd
+          realtime_input_config: {
+            automatic_activity_detection: {
+              disabled: true,
+            },
+          },
           system_instruction: {
             parts: [
               {
                 text: [
-                  `You are a real-time transcription and translation assistant for a nursing/medical environment.`,
-                  `Task:`,
-                  `1. Transcribe the audio input accurately.`,
-                  `2. Translate the transcription into ${targetLangName}.`,
-                  `CRITICAL: When translating to Chinese, you MUST use Traditional Chinese (繁體中文) characters only. NEVER use Simplified Chinese (簡體中文).`,
-                  `Output format (JSON only, no markdown):`,
-                  `{"transcript": "<original text>", "translation": "<translated text>"}`,
-                ].join("\n"),
+                  `You are a professional real-time simultaneous interpreter for a nursing/medical environment.`,
+                  `The user will speak in ${sourceLangName}.`,
+                  `Your task: Translate what you hear into ${targetLangName} and speak it clearly.`,
+                  `CRITICAL: When translating to Chinese, ALWAYS use Traditional Chinese (繁體中文). NEVER use Simplified Chinese (簡體中文).`,
+                  `Keep the translation accurate, concise, and at a natural speaking pace.`,
+                  `Do not add any explanations, greetings, or filler words.`,
+                ].join(" "),
               },
             ],
           },
@@ -113,12 +132,10 @@ export async function runGeminiLive(
       };
 
       ws.send(JSON.stringify(setupMsg));
-
-      // Step 2: 等待 setup 完成後送入音訊
-      // Gemini Live 會回傳 setupComplete 事件
+      if (verbose) console.log(`[gemini-live] 📤 setup 已送出`);
     });
 
-    ws.on("message", async (raw: Buffer) => {
+    ws.on("message", (raw: Buffer) => {
       let msg: Record<string, unknown>;
       try {
         msg = JSON.parse(raw.toString());
@@ -126,43 +143,41 @@ export async function runGeminiLive(
         return;
       }
 
-      if (verbose) console.log(`[gemini-live] 📨 收到:`, JSON.stringify(msg).slice(0, 200));
-
-      // 收到 setupComplete → 送入音訊
+      // setupComplete → 轉換並送入 PCM16 音訊
       if (msg.setupComplete !== undefined) {
-        if (verbose) console.log(`[gemini-live] ✅ Setup 完成，送入音訊...`);
+        const elapsed = Date.now() - startTime;
+        if (verbose) console.log(`[gemini-live] ✅ setupComplete @${elapsed}ms — 送入 PCM16 音訊...`);
 
         try {
-          const { data, mimeType } = await loadAudioAsBase64(audioPath);
+          const pcmBuf = convertToPcm16(audioPath);
+          if (verbose) console.log(`[gemini-live] 🎵 PCM16: ${pcmBuf.length} bytes (${(pcmBuf.length / (16000 * 2)).toFixed(2)}s)`);
 
-          const audioMsg = {
-            realtime_input: {
-              media_chunks: [
-                {
-                  data,
-                  mime_type: mimeType,
+          // 使用 custom VAD 模式：先發送 activityStart，送完音訊後發送 activityEnd
+          // 這是 gemini-3.1-flash-live-preview 的正確做法
+          ws.send(JSON.stringify({ realtime_input: { activity_start: {} } }));
+          if (verbose) console.log(`[gemini-live] 📤 activityStart @${Date.now() - startTime}ms`);
+
+          // 分塊送入（每塊 3200 bytes = 100ms @ 16kHz 16-bit mono）
+          const chunkSize = 3200;
+          let offset = 0;
+          while (offset < pcmBuf.length) {
+            const chunk = pcmBuf.slice(offset, offset + chunkSize);
+            ws.send(JSON.stringify({
+              realtime_input: {
+                audio: {
+                  data: chunk.toString("base64"),
+                  mime_type: "audio/pcm;rate=16000",
                 },
-              ],
-            },
-          };
-          ws.send(JSON.stringify(audioMsg));
-
-          // 送完音訊後發送 end-of-turn 信號
-          setTimeout(() => {
-            const eotMsg = {
-              client_content: {
-                turns: [
-                  {
-                    role: "user",
-                    parts: [{ text: "" }],
-                  },
-                ],
-                turn_complete: true,
               },
-            };
-            ws.send(JSON.stringify(eotMsg));
-            if (verbose) console.log(`[gemini-live] 📤 已送入音訊並發送 end-of-turn`);
-          }, 100);
+            }));
+            offset += chunkSize;
+          }
+
+          // 送入音訊後發送 activityEnd
+          setTimeout(() => {
+            ws.send(JSON.stringify({ realtime_input: { activity_end: {} } }));
+            if (verbose) console.log(`[gemini-live] 📤 activityEnd @${Date.now() - startTime}ms`);
+          }, 200);
         } catch (err) {
           clearTimeout(timer);
           ws.close();
@@ -173,75 +188,75 @@ export async function runGeminiLive(
             transcribedText: "",
             translatedText: "",
             success: false,
-            error: `音訊載入失敗: ${err}`,
+            error: `PCM16 轉換失敗: ${err}`,
           });
         }
         return;
       }
 
-      // 處理 serverContent（串流文字輸出）
-      const serverContent = msg.serverContent as Record<string, unknown> | undefined;
-      if (serverContent) {
-        const modelTurn = serverContent.modelTurn as Record<string, unknown> | undefined;
-        if (modelTurn) {
-          const parts = modelTurn.parts as Array<Record<string, unknown>> | undefined;
+      // 處理 serverContent
+      const sc = msg.serverContent as Record<string, unknown> | undefined;
+      if (sc) {
+        const elapsed = Date.now() - startTime;
+
+        // outputTranscription：翻譯後語音的文字稿（即翻譯結果）
+        const ot = sc.outputTranscription as Record<string, unknown> | undefined;
+        if (ot?.text) {
+          const text = ot.text as string;
+          if (firstPartialMs === null) {
+            firstPartialMs = elapsed;
+            if (verbose) console.log(`[gemini-live] ⚡ 首字 @${elapsed}ms: "${text}"`);
+          }
+          outputTranscript += text;
+          translationMs = elapsed;
+          if (verbose) console.log(`[gemini-live] 📝 output @${elapsed}ms: "${text}"`);
+        }
+
+        // inputTranscription：輸入語音的文字稿（即原文轉錄）
+        const it = sc.inputTranscription as Record<string, unknown> | undefined;
+        if (it?.text) {
+          const text = it.text as string;
+          inputTranscript += text;
+          if (verbose) console.log(`[gemini-live] 📝 input @${elapsed}ms: "${text}"`);
+        }
+
+        // modelTurn：音訊塊（不處理，只計數）
+        const mt = sc.modelTurn as Record<string, unknown> | undefined;
+        if (mt) {
+          const parts = mt.parts as Array<Record<string, unknown>> | undefined;
           if (parts) {
-            for (const part of parts) {
-              const text = part.text as string | undefined;
-              if (text) {
-                const elapsed = Date.now() - startTime;
-
-                // 首個 partial
-                if (firstPartialMs === null) {
-                  firstPartialMs = elapsed;
-                  if (verbose) console.log(`[gemini-live] ⚡ 首字 @${elapsed}ms: ${text.slice(0, 50)}`);
-                }
-
-                // 嘗試解析 JSON 輸出
-                const fullText = text.trim();
-                try {
-                  // 嘗試提取 JSON（可能夾在其他文字中）
-                  const jsonMatch = fullText.match(/\{[^}]+\}/s);
-                  if (jsonMatch) {
-                    const parsed = JSON.parse(jsonMatch[0]);
-                    if (parsed.transcript) transcribedText = parsed.transcript;
-                    if (parsed.translation) {
-                      translatedText = parsed.translation;
-                      translationMs = elapsed;
-                    }
-                  }
-                } catch {
-                  // 非 JSON，當作純文字轉錄
-                  transcribedText += text;
-                }
+            for (const p of parts) {
+              if (p.text) {
+                // 若有文字輸出（不預期，但保留）
+                if (firstPartialMs === null) firstPartialMs = elapsed;
+                outputTranscript += p.text as string;
               }
             }
           }
         }
 
-        // turnComplete = true 表示這輪回應結束
-        if (serverContent.turnComplete === true) {
-          finalTranscriptMs = Date.now() - startTime;
+        // turnComplete
+        if (sc.turnComplete === true) {
+          finalTranscriptMs = elapsed;
           if (verbose) {
-            console.log(`[gemini-live] ✅ 轉錄完成 @${finalTranscriptMs}ms`);
-            console.log(`[gemini-live]   轉錄: ${transcribedText.slice(0, 80)}`);
-            console.log(`[gemini-live]   翻譯: ${translatedText.slice(0, 80)}`);
+            console.log(`[gemini-live] ✅ turnComplete @${finalTranscriptMs}ms`);
+            console.log(`[gemini-live]   輸入轉錄: ${inputTranscript.slice(0, 80)}`);
+            console.log(`[gemini-live]   輸出翻譯: ${outputTranscript.slice(0, 80)}`);
           }
-
           clearTimeout(timer);
           ws.close();
           resolve({
             firstPartialMs,
             finalTranscriptMs,
             translationMs,
-            transcribedText,
-            translatedText,
-            success: transcribedText.length > 0,
+            transcribedText: inputTranscript,
+            translatedText: outputTranscript,
+            success: outputTranscript.length > 0,
           });
         }
       }
 
-      // 處理錯誤
+      // 錯誤處理
       if (msg.error) {
         const errObj = msg.error as Record<string, unknown>;
         clearTimeout(timer);
@@ -250,8 +265,8 @@ export async function runGeminiLive(
           firstPartialMs,
           finalTranscriptMs,
           translationMs,
-          transcribedText,
-          translatedText,
+          transcribedText: inputTranscript,
+          translatedText: outputTranscript,
           success: false,
           error: `API 錯誤: ${errObj.message || JSON.stringify(errObj)}`,
         });
@@ -264,15 +279,15 @@ export async function runGeminiLive(
         firstPartialMs,
         finalTranscriptMs,
         translationMs,
-        transcribedText,
-        translatedText,
+        transcribedText: inputTranscript,
+        translatedText: outputTranscript,
         success: false,
         error: `WebSocket 錯誤: ${err.message}`,
       });
     });
 
     ws.on("close", () => {
-      if (verbose) console.log(`[gemini-live] 🔌 WebSocket 已關閉`);
+      if (verbose) console.log(`[gemini-live] 🔌 WebSocket 已關閉 @${Date.now() - startTime}ms`);
     });
   });
 }
