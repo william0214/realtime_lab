@@ -41,6 +41,7 @@ import { runOpenAIRealtime2 } from "./runners/openai-realtime2";
 import { runGladia } from "./runners/gladia";
 import { runDeeepgram } from "./runners/deepgram";
 import { runGeminiLive } from "./runners/gemini-live";
+import { runGeminiLiveVertex } from "./runners/gemini-live-vertex";
 
 // ============================================================
 // CLI 參數解析
@@ -61,6 +62,7 @@ const ALL_PROVIDERS: ProviderName[] = [
   "gladia",
   "deepgram",
   "gemini-live",
+  "gemini-live-vertex",
 ];
 
 const providersArg = getArg("providers", "");
@@ -95,6 +97,7 @@ const API_KEYS: Partial<Record<ProviderName, string>> = {
   deepgram: process.env.DEEPGRAM_API_KEY,
   soniox: process.env.SONIOX_API_KEY,
   "gemini-live": process.env.GEMINI_API_KEY,
+  "gemini-live-vertex": process.env.GEMINI_API_KEY, // Vertex AI 使用 OAuth，此值僅作佔位
 };
 
 // ============================================================
@@ -137,7 +140,8 @@ async function runProvider(
     gladia: "Gladia Solaria-1",
     deepgram: "Deepgram Nova-3",
     soniox: "Soniox",
-    "gemini-live": "Gemini 3.1 Flash Live",
+    "gemini-live": "Gemini 3.1 Flash Live (AI Studio)",
+    "gemini-live-vertex": "Gemini Live 2.5 Flash (Vertex AI, HIPAA)",
   };
 
   if (!apiKey) {
@@ -215,6 +219,9 @@ async function runProvider(
           break;
         case "gemini-live":
           result = await runGeminiLive(sentence, audioPath, config.sourceLang, config.targetLang, apiKey, config.timeoutMs, config.verbose);
+          break;
+        case "gemini-live-vertex":
+          result = await runGeminiLiveVertex(sentence, audioPath, config.sourceLang, config.targetLang, apiKey, config.timeoutMs, config.verbose);
           break;
         default:
           result = {

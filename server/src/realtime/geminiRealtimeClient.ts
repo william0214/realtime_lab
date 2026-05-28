@@ -2,12 +2,27 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 import fs from 'fs';
 import path from 'path';
+import { GoogleAuth } from 'google-auth-library';
 import { IRealtimeClient, IRealtimeClientOptions, RealtimeProvider, ReconnectInfo, DisconnectInfo } from './types';
 
-const GEMINI_LIVE_API_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
-// 預設使用 gemini-3-flash-preview，若不支援會 fallback 到 gemini-2.0-flash-exp
-const DEFAULT_MODEL = 'models/gemini-3-flash-preview';
-const FALLBACK_MODEL = 'models/gemini-2.0-flash-exp';
+// AI Studio 端點（不合規，僅開發用）
+const GEMINI_LIVE_API_URL_AI_STUDIO = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+
+// Vertex AI 端點（HIPAA 合規）
+const VERTEX_AI_PROJECT = process.env.VERTEX_AI_PROJECT || 'gen-lang-client-0878023388';
+const VERTEX_AI_LOCATION = process.env.VERTEX_AI_LOCATION || 'us-central1';
+const GEMINI_LIVE_API_URL_VERTEX = `wss://${VERTEX_AI_LOCATION}-aiplatform.googleapis.com/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`;
+
+// 模型 ID
+// AI Studio 格式：models/gemini-3-flash-preview
+// Vertex AI 格式：projects/{project}/locations/{location}/publishers/google/models/gemini-live-2.5-flash-native-audio
+const DEFAULT_MODEL_AI_STUDIO = 'models/gemini-3-flash-preview';
+const DEFAULT_MODEL_VERTEX = `projects/${VERTEX_AI_PROJECT}/locations/${VERTEX_AI_LOCATION}/publishers/google/models/gemini-live-2.5-flash-native-audio`;
+
+// 是否使用 Vertex AI（HIPAA 合規模式）
+const USE_VERTEX_AI = process.env.GEMINI_USE_VERTEX_AI === 'true';
+
+console.log(`[Gemini] Provider mode: ${USE_VERTEX_AI ? '✅ Vertex AI (HIPAA compliant)' : '⚠️  AI Studio (dev only)'}`);
 
 export interface GeminiRealtimeClientOptions extends IRealtimeClientOptions {
     voice?: string; // Gemini 支援多種語音：Puck, Charon, Kore, Fenrir, Aoede
@@ -62,11 +77,19 @@ export class GeminiRealtimeClient extends EventEmitter implements IRealtimeClien
     constructor(options: GeminiRealtimeClientOptions) {
         super();
         this.apiKey = options.apiKey;
-        this.requestedModel = options.model || process.env.GEMINI_LIVE_MODEL || DEFAULT_MODEL;
-        // 確保 model 有 models/ 前綴
-        this.model = this.requestedModel.startsWith('models/') 
-            ? this.requestedModel 
-            : `models/${this.requestedModel}`;
+        // Vertex AI 模式下使用完整路徑模型 ID
+        if (USE_VERTEX_AI) {
+            this.requestedModel = options.model || process.env.GEMINI_LIVE_MODEL || DEFAULT_MODEL_VERTEX;
+            this.model = this.requestedModel.startsWith('projects/') 
+                ? this.requestedModel 
+                : DEFAULT_MODEL_VERTEX;
+        } else {
+            this.requestedModel = options.model || process.env.GEMINI_LIVE_MODEL || DEFAULT_MODEL_AI_STUDIO;
+            // 確保 model 有 models/ 前綴
+            this.model = this.requestedModel.startsWith('models/') 
+                ? this.requestedModel 
+                : `models/${this.requestedModel}`;
+        }
         if (options.sourceLang) this.sourceLang = options.sourceLang;
         if (options.targetLang) this.targetLang = options.targetLang;
         if (options.autoReconnect !== undefined) this.autoReconnect = options.autoReconnect;
@@ -271,26 +294,51 @@ ${domainHint}${ragHint}
     }
 
     async connect(): Promise<void> {
+        // 重新生成 session ID（在 Promise 外，確保每次 connect 都有新 ID）
+        this.sessionId = `gemini_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        this.sessionEvents = [];
+        this.manualDisconnect = false;
+
+        // 根據模式選擇端點和認證方式
+        let url: string;
+        let wsHeaders: Record<string, string> = {};
+
+        if (USE_VERTEX_AI) {
+            // Vertex AI：使用 OAuth Bearer Token（需要 await，在 Promise 外處理）
+            url = GEMINI_LIVE_API_URL_VERTEX;
+            try {
+                const auth = new GoogleAuth({
+                    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+                    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+                });
+                const client = await auth.getClient();
+                const tokenResponse = await client.getAccessToken();
+                const token = tokenResponse.token;
+                if (!token) throw new Error('Failed to get access token from Google Auth');
+                wsHeaders['Authorization'] = `Bearer ${token}`;
+                console.log('🔑 [Gemini] Vertex AI OAuth token obtained successfully');
+            } catch (authError) {
+                console.error('❌ [Gemini] Failed to get Vertex AI OAuth token:', authError);
+                throw authError;
+            }
+        } else {
+            // AI Studio：使用 API Key
+            url = `${GEMINI_LIVE_API_URL_AI_STUDIO}?key=${this.apiKey}`;
+        }
+
+        console.log(`🔌 [Gemini] Connecting to ${USE_VERTEX_AI ? 'Vertex AI' : 'AI Studio'} Gemini Live API...`);
+        console.log(`   Session ID: ${this.sessionId}`);
+        console.log(`   Model: ${this.model}`);
+
+        this.logSessionEvent('connect_start', { model: this.model, sessionId: this.sessionId, provider: USE_VERTEX_AI ? 'vertex_ai' : 'ai_studio' });
+
         return new Promise((resolve, reject) => {
             if (this.ws) {
                 this.ws.terminate();
                 this.ws = null;
             }
 
-            // 重新生成 session ID
-            this.sessionId = `gemini_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            this.sessionEvents = [];
-
-            this.manualDisconnect = false;
-            const url = `${GEMINI_LIVE_API_URL}?key=${this.apiKey}`;
-
-            console.log(`🔌 [Gemini] Connecting to Gemini Live API...`);
-            console.log(`   Session ID: ${this.sessionId}`);
-            console.log(`   Model: ${this.model}`);
-
-            this.logSessionEvent('connect_start', { model: this.model, sessionId: this.sessionId });
-
-            this.ws = new WebSocket(url);
+            this.ws = new WebSocket(url, { headers: wsHeaders });
 
             this.ws.on('open', () => {
                 console.log('✅ [Gemini] WebSocket connected, sending setup...');
@@ -462,10 +510,13 @@ ${domainHint}${ragHint}
                                  errorMsg.includes('invalid model') ||
                                  error.code === 404;
 
-            if (isModelError && this.model !== FALLBACK_MODEL) {
-                console.warn(`⚠️ [Gemini] Model "${this.model}" not supported, falling back to "${FALLBACK_MODEL}"`);
-                this.logSessionEvent('model_fallback', { from: this.model, to: FALLBACK_MODEL });
-                this.model = FALLBACK_MODEL;
+            // Fallback model: AI Studio 用 gemini-2.0-flash-exp，Vertex AI 用同模型
+            const fallbackModel = USE_VERTEX_AI ? DEFAULT_MODEL_VERTEX : 'models/gemini-2.0-flash-exp';
+
+            if (isModelError && this.model !== fallbackModel) {
+                console.warn(`⚠️ [Gemini] Model "${this.model}" not supported, falling back to "${fallbackModel}"`);
+                this.logSessionEvent('model_fallback', { from: this.model, to: fallbackModel });
+                this.model = fallbackModel;
                 
                 // 重新發送 setup
                 this.sendSetup();

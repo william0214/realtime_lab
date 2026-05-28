@@ -42,3 +42,4 @@ coverage/
 
 # Session logs with potentially sensitive data
 server/logs/*.jsonl
+vertex-ai-key.json

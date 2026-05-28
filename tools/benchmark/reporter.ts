@@ -19,7 +19,8 @@ const PROVIDER_LABELS: Record<ProviderName, string> = {
   gladia: "Gladia Solaria-1",
   deepgram: "Deepgram Nova-3",
   soniox: "Soniox",
-  "gemini-live": "Gemini 3.1 Flash Live",
+  "gemini-live": "Gemini 3.1 Flash Live (AI Studio)",
+  "gemini-live-vertex": "Gemini Live 2.5 Flash (Vertex AI)",
 };
 
 function avg(nums: number[]): number {

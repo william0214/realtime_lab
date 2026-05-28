@@ -10,7 +10,8 @@ export type ProviderName =
   | "gladia"               // Gladia Solaria-1
   | "deepgram"             // Deepgram Nova-3
   | "soniox"              // Soniox
-  | "gemini-live";         // Gemini 3.1 Flash Live (Google)
+  | "gemini-live"          // Gemini 3.1 Flash Live (Google AI Studio)
+  | "gemini-live-vertex";   // Gemini Live 2.5 Flash (Vertex AI, HIPAA compliant)
 
 export interface TestSentence {
   id: string;
